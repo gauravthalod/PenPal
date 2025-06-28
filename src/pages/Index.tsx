@@ -6,7 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { Search, Plus, Calendar, User, Book, Home, Message } from "lucide-react";
+import { Search, Plus, Calendar, User, Book, Home, MessageCircle } from "lucide-react";
 
 const Index = () => {
   const [activeTab, setActiveTab] = useState("feed");
@@ -108,7 +108,7 @@ const Index = () => {
               <span>My Posted Gigs</span>
             </TabsTrigger>
             <TabsTrigger value="accepted" className="flex items-center space-x-2">
-              <Message className="w-4 h-4" />
+              <MessageCircle className="w-4 h-4" />
               <span>Accepted Gigs</span>
             </TabsTrigger>
           </TabsList>
@@ -201,7 +201,7 @@ const Index = () => {
           <TabsContent value="accepted" className="space-y-6">
             <div className="text-center py-12">
               <div className="w-16 h-16 bg-gradient-to-r from-green-100 to-emerald-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                <Message className="w-8 h-8 text-green-600" />
+                <MessageCircle className="w-8 h-8 text-green-600" />
               </div>
               <h3 className="text-xl font-semibold text-gray-900 mb-2">No Accepted Gigs</h3>
               <p className="text-gray-600 mb-6">Browse the gig feed and accept gigs that interest you</p>
