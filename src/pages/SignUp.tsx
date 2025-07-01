@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -8,10 +8,12 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Eye, EyeOff, Mail, Lock, GraduationCap, User, Phone, Calendar } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { useGoogleAuth } from "@/hooks/useGoogleAuth";
 
 const SignUp = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
+  const { isLoading: googleLoading, isInitialized, renderGoogleButton } = useGoogleAuth();
   
   const [formData, setFormData] = useState({
     firstName: "",
@@ -150,6 +152,23 @@ const SignUp = () => {
   const handleLoginRedirect = () => {
     navigate("/login");
   };
+
+  // Render Google Sign-in button when component mounts and Google Auth is initialized
+  useEffect(() => {
+    if (isInitialized) {
+      const timer = setTimeout(() => {
+        renderGoogleButton('google-signup-button', {
+          theme: 'outline',
+          size: 'large',
+          text: 'signup_with',
+          shape: 'rectangular',
+          width: 280,
+        });
+      }, 100);
+
+      return () => clearTimeout(timer);
+    }
+  }, [isInitialized, renderGoogleButton]);
 
   return (
     <div className="min-h-screen bg-gray-50 flex items-center justify-center px-4 py-8">
@@ -359,6 +378,27 @@ const SignUp = () => {
               >
                 {isLoading ? "Creating Account..." : "Create Account"}
               </Button>
+
+              {/* Divider */}
+              <div className="relative">
+                <div className="absolute inset-0 flex items-center">
+                  <span className="w-full border-t" />
+                </div>
+                <div className="relative flex justify-center text-xs uppercase">
+                  <span className="bg-white px-2 text-gray-500">Or continue with</span>
+                </div>
+              </div>
+
+              {/* Google OAuth Button */}
+              <div className="flex justify-center">
+                <div id="google-signup-button" className="w-full max-w-[280px]">
+                  {!isInitialized && (
+                    <div className="w-full h-[40px] bg-gray-100 rounded border flex items-center justify-center">
+                      <span className="text-sm text-gray-500">Loading Google Sign-Up...</span>
+                    </div>
+                  )}
+                </div>
+              </div>
 
               {/* Login Link */}
               <div className="text-center pt-4 border-t">
