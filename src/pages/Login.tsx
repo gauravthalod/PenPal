@@ -1,143 +1,175 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Eye, EyeOff, Mail, Lock, GraduationCap } from "lucide-react";
+import { Phone, MessageSquare, GraduationCap, ArrowLeft, RotateCcw } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import { useGoogleAuth } from "@/hooks/useGoogleAuth";
+import { useOTPAuth } from "@/hooks/useOTPAuth";
+import OtpInput from 'react-otp-input';
 
 const Login = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
-  const { isLoading: googleLoading, isInitialized, renderGoogleButton } = useGoogleAuth();
   
-  const [formData, setFormData] = useState({
-    email: "",
-    password: ""
-  });
-  
-  const [showPassword, setShowPassword] = useState(false);
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState("");
+  const {
+    phoneNumber,
+    setPhoneNumber,
+    isValidPhone,
+    phoneError,
+    otp,
+    setOtp,
+    timeRemaining,
+    canResend,
+    isSendingOTP,
+    isVerifyingOTP,
+    sendOTP,
+    verifyOTP,
+    resendOTP,
+    resetFlow,
+    step,
+  } = useOTPAuth();
 
-  // Common college email domains for validation
-  const collegeEmailDomains = [
-    "cmrec.ac.in",
-    "cmrit.ac.in",
-    "cmrtc.ac.in",
-    "cmrcet.ac.in",
-    "cmr.edu.in",
-    "bits.edu.in",
-    "iitb.ac.in",
-    "iitd.ac.in",
-    "iitk.ac.in",
-    "iitm.ac.in",
-    "iisc.ac.in",
-    "nit.edu",
-    "dtu.ac.in",
-    "vit.ac.in",
-    "manipal.edu",
-    "srm.edu.in",
-    "amity.edu",
-    "student.edu"
-  ];
-
-  const handleInputChange = (field: string, value: string) => {
-    setFormData(prev => ({
-      ...prev,
-      [field]: value
-    }));
-    // Clear error when user starts typing
-    if (error) setError("");
-  };
-
-  const validateCollegeEmail = (email: string) => {
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(email)) {
-      return false;
-    }
-
-    const domain = email.split('@')[1]?.toLowerCase();
-    return collegeEmailDomains.some(collegeDomain =>
-      domain === collegeDomain || domain.endsWith('.' + collegeDomain)
-    );
-  };
-
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handlePhoneSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setError("");
-    setIsLoading(true);
-
-    // Validation
-    if (!formData.email || !formData.password) {
-      setError("Please fill in all fields");
-      setIsLoading(false);
-      return;
-    }
-
-    if (!validateCollegeEmail(formData.email)) {
-      setError("Please use your college email address (e.g., student@college.edu)");
-      setIsLoading(false);
-      return;
-    }
-
-    if (formData.password.length < 6) {
-      setError("Password must be at least 6 characters long");
-      setIsLoading(false);
-      return;
-    }
-
-    try {
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 1500));
-
-      // Mock authentication - in real app, this would be an API call
-      if (formData.email === "karthik@cmrec.ac.in" && formData.password === "password123") {
-        toast({
-          title: "Login Successful",
-          description: "Welcome back to CampusCrew!",
-        });
-        navigate("/");
-      } else {
-        setError("Invalid email or password. Try karthik@cmrec.ac.in / password123");
-      }
-    } catch (err) {
-      setError("Login failed. Please try again.");
-    } finally {
-      setIsLoading(false);
-    }
+    await sendOTP();
   };
 
-  const handleForgotPassword = () => {
-    toast({
-      title: "Password Reset",
-      description: "Password reset link would be sent to your college email.",
-    });
+  const handleOTPSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    await verifyOTP();
   };
 
   const handleSignUp = () => {
     navigate("/signup");
   };
 
-  // Render Google Sign-in button when component mounts and Google Auth is initialized
-  useEffect(() => {
-    if (isInitialized) {
-      const timer = setTimeout(() => {
-        renderGoogleButton('google-signin-button', {
-          theme: 'outline',
-          size: 'large',
-          text: 'signin_with',
-          shape: 'rectangular',
-          width: 280,
-        });
-      }, 100);
+  const formatTimeRemaining = (seconds: number): string => {
+    const minutes = Math.floor(seconds / 60);
+    const remainingSeconds = seconds % 60;
+    return `${minutes}:${remainingSeconds.toString().padStart(2, '0')}`;
+  };
 
-      return () => clearTimeout(timer);
-    }
-  }, [isInitialized, renderGoogleButton]);
+  const renderPhoneStep = () => (
+    <form onSubmit={handlePhoneSubmit} className="space-y-4">
+      {/* Phone Number Input */}
+      <div className="space-y-2">
+        <Label htmlFor="phone">Phone Number</Label>
+        <div className="relative">
+          <Phone className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+          <Input
+            id="phone"
+            type="tel"
+            placeholder="+91 98765 43210"
+            value={phoneNumber}
+            onChange={(e) => setPhoneNumber(e.target.value)}
+            className="pl-10"
+            required
+          />
+        </div>
+        {phoneError && (
+          <p className="text-sm text-red-600">{phoneError}</p>
+        )}
+      </div>
+
+      {/* Demo Credentials */}
+      <div className="bg-blue-50 p-3 rounded-lg">
+        <p className="text-sm text-blue-700 font-medium mb-1">Demo Credentials:</p>
+        <p className="text-xs text-blue-600">Phone: +919876543210</p>
+        <p className="text-xs text-blue-600">OTP: 123456</p>
+      </div>
+
+      {/* Send OTP Button */}
+      <Button
+        type="submit"
+        className="w-full bg-blue-500 hover:bg-blue-600"
+        disabled={!isValidPhone || isSendingOTP}
+      >
+        {isSendingOTP ? "Sending OTP..." : "Send OTP"}
+      </Button>
+    </form>
+  );
+
+  const renderOTPStep = () => (
+    <div className="space-y-4">
+      {/* Back Button */}
+      <Button
+        variant="ghost"
+        onClick={resetFlow}
+        className="mb-4 p-0 h-auto text-blue-600 hover:text-blue-800"
+      >
+        <ArrowLeft className="w-4 h-4 mr-2" />
+        Change Phone Number
+      </Button>
+
+      {/* Phone Number Display */}
+      <div className="text-center mb-4">
+        <p className="text-sm text-gray-600">
+          Enter the 6-digit code sent to
+        </p>
+        <p className="font-medium text-gray-900">{phoneNumber}</p>
+      </div>
+
+      <form onSubmit={handleOTPSubmit} className="space-y-4">
+        {/* OTP Input */}
+        <div className="space-y-2">
+          <Label className="block text-center">Verification Code</Label>
+          <div className="flex justify-center">
+            <OtpInput
+              value={otp}
+              onChange={setOtp}
+              numInputs={6}
+              separator={<span className="mx-1"></span>}
+              inputStyle={{
+                width: '40px',
+                height: '40px',
+                margin: '0 4px',
+                fontSize: '16px',
+                borderRadius: '8px',
+                border: '1px solid #d1d5db',
+                textAlign: 'center',
+                outline: 'none',
+              }}
+              focusStyle={{
+                border: '2px solid #3b82f6',
+              }}
+            />
+          </div>
+        </div>
+
+        {/* Timer and Resend */}
+        <div className="text-center">
+          {timeRemaining > 0 ? (
+            <p className="text-sm text-gray-600">
+              Resend OTP in {formatTimeRemaining(timeRemaining)}
+            </p>
+          ) : (
+            <Button
+              type="button"
+              variant="ghost"
+              onClick={resendOTP}
+              disabled={isSendingOTP}
+              className="text-blue-600 hover:text-blue-800"
+            >
+              <RotateCcw className="w-4 h-4 mr-2" />
+              {isSendingOTP ? "Sending..." : "Resend OTP"}
+            </Button>
+          )}
+        </div>
+
+        {/* Verify Button */}
+        <Button
+          type="submit"
+          className="w-full bg-blue-500 hover:bg-blue-600"
+          disabled={otp.length !== 6 || isVerifyingOTP}
+        >
+          {isVerifyingOTP ? "Verifying..." : "Verify & Login"}
+        </Button>
+      </form>
+    </div>
+  );
 
   return (
     <div className="min-h-screen bg-gray-50 flex items-center justify-center px-3 sm:px-4">
@@ -150,141 +182,50 @@ const Login = () => {
             </div>
             <h1 className="text-2xl sm:text-3xl font-bold text-blue-600">CampusCrew</h1>
           </div>
-          <p className="text-sm sm:text-base text-gray-600">Sign in to your student account</p>
+          <p className="text-sm sm:text-base text-gray-600">
+            {step === 'phone' ? 'Sign in with your phone number' : 'Verify your phone number'}
+          </p>
         </div>
 
         {/* Login Form */}
         <Card>
           <CardHeader>
-            <CardTitle className="text-center text-xl">Login</CardTitle>
+            <CardTitle className="text-center text-xl flex items-center justify-center gap-2">
+              {step === 'phone' ? (
+                <>
+                  <Phone className="w-5 h-5" />
+                  Login
+                </>
+              ) : (
+                <>
+                  <MessageSquare className="w-5 h-5" />
+                  Verify OTP
+                </>
+              )}
+            </CardTitle>
           </CardHeader>
           <CardContent>
-            <form onSubmit={handleSubmit} className="space-y-4">
-              {/* Error Alert */}
-              {error && (
-                <Alert variant="destructive">
-                  <AlertDescription>{error}</AlertDescription>
-                </Alert>
-              )}
+            {step === 'phone' ? renderPhoneStep() : renderOTPStep()}
 
-              {/* College Email */}
-              <div className="space-y-2">
-                <Label htmlFor="email">College Email *</Label>
-                <div className="relative">
-                  <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
-                  <Input
-                    id="email"
-                    type="email"
-                    placeholder="student@college.edu"
-                    value={formData.email}
-                    onChange={(e) => handleInputChange("email", e.target.value)}
-                    className="pl-10"
-                    required
-                  />
-                </div>
-                <p className="text-xs text-gray-500">
-                  Use your official college email address
-                </p>
-              </div>
-
-              {/* Password */}
-              <div className="space-y-2">
-                <Label htmlFor="password">Password *</Label>
-                <div className="relative">
-                  <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
-                  <Input
-                    id="password"
-                    type={showPassword ? "text" : "password"}
-                    placeholder="Enter your password"
-                    value={formData.password}
-                    onChange={(e) => handleInputChange("password", e.target.value)}
-                    className="pl-10 pr-10"
-                    required
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowPassword(!showPassword)}
-                    className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
-                  >
-                    {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                  </button>
-                </div>
-              </div>
-
-              {/* Demo Credentials */}
-              <div className="bg-blue-50 p-3 rounded-lg">
-                <p className="text-sm text-blue-700 font-medium mb-1">Demo Credentials:</p>
-                <p className="text-xs text-blue-600">Email: karthik@cmrec.ac.in</p>
-                <p className="text-xs text-blue-600">Password: password123</p>
-              </div>
-
-              {/* Login Button */}
-              <Button
-                type="submit"
-                className="w-full bg-blue-500 hover:bg-blue-600"
-                disabled={isLoading}
-              >
-                {isLoading ? "Signing in..." : "Sign In"}
-              </Button>
-
-              {/* Divider */}
-              <div className="relative">
-                <div className="absolute inset-0 flex items-center">
-                  <span className="w-full border-t" />
-                </div>
-                <div className="relative flex justify-center text-xs uppercase">
-                  <span className="bg-white px-2 text-gray-500">Or continue with</span>
-                </div>
-              </div>
-
-              {/* Google OAuth Button */}
-              <div className="flex justify-center">
-                <div id="google-signin-button" className="w-full max-w-[280px]">
-                  {!isInitialized && (
-                    <div className="w-full h-[40px] bg-gray-100 rounded border flex items-center justify-center">
-                      <span className="text-sm text-gray-500">Loading Google Sign-In...</span>
-                    </div>
-                  )}
-                </div>
-              </div>
-
-              {/* Forgot Password */}
-              <div className="text-center">
+            {/* Sign Up Link */}
+            <div className="text-center pt-4 border-t mt-6">
+              <p className="text-sm text-gray-600">
+                Don't have an account?{" "}
                 <button
                   type="button"
-                  onClick={handleForgotPassword}
-                  className="text-sm text-blue-600 hover:text-blue-800 underline"
+                  onClick={handleSignUp}
+                  className="text-blue-600 hover:text-blue-800 font-medium underline"
                 >
-                  Forgot your password?
+                  Sign up
                 </button>
-              </div>
-
-              {/* Sign Up Link */}
-              <div className="text-center pt-4 border-t">
-                <p className="text-sm text-gray-600">
-                  Don't have an account?{" "}
-                  <button
-                    type="button"
-                    onClick={handleSignUp}
-                    className="text-blue-600 hover:text-blue-800 font-medium underline"
-                  >
-                    Sign up
-                  </button>
-                </p>
-              </div>
-            </form>
+              </p>
+            </div>
           </CardContent>
         </Card>
 
         {/* Footer */}
         <div className="text-center mt-6 text-xs text-gray-500">
-          <p>By signing in, you agree to our Terms of Service and Privacy Policy</p>
-          <button
-            onClick={() => navigate("/admin/login")}
-            className="mt-2 text-xs text-gray-400 hover:text-gray-600 underline"
-          >
-            Admin Access
-          </button>
+          <p>Secure authentication via SMS verification</p>
         </div>
       </div>
     </div>

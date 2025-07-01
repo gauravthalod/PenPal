@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -6,146 +6,134 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Eye, EyeOff, Mail, Lock, GraduationCap, User, Phone, Calendar } from "lucide-react";
+import { Phone, MessageSquare, GraduationCap, User, ArrowLeft, RotateCcw } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import { useGoogleAuth } from "@/hooks/useGoogleAuth";
+import { useOTPAuth } from "@/hooks/useOTPAuth";
+import OtpInput from 'react-otp-input';
 
 const SignUp = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
-  const { isLoading: googleLoading, isInitialized, renderGoogleButton } = useGoogleAuth();
   
-  const [formData, setFormData] = useState({
+  const {
+    phoneNumber,
+    setPhoneNumber,
+    isValidPhone,
+    phoneError,
+    otp,
+    setOtp,
+    timeRemaining,
+    canResend,
+    isSendingOTP,
+    isVerifyingOTP,
+    sendOTP,
+    verifyOTP,
+    resendOTP,
+    resetFlow,
+    step,
+  } = useOTPAuth();
+
+  const [profileData, setProfileData] = useState({
     firstName: "",
     lastName: "",
-    email: "",
-    password: "",
-    confirmPassword: "",
     college: "",
     year: "",
     branch: "",
-    phone: "",
-    rollNumber: ""
   });
-  
-  const [showPassword, setShowPassword] = useState(false);
-  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState("");
 
-  // CMR Group colleges
+  const [showProfileForm, setShowProfileForm] = useState(false);
+  const [isCreatingProfile, setIsCreatingProfile] = useState(false);
+
   const colleges = [
-    { value: "cmrec", label: "CMREC - CMR Engineering College", domain: "cmrec.ac.in" },
-    { value: "cmrit", label: "CMRIT - CMR Institute of Technology", domain: "cmrit.ac.in" },
-    { value: "cmrtc", label: "CMRTC - CMR Technical Campus", domain: "cmrtc.ac.in" },
-    { value: "cmrcet", label: "CMRCET - CMR College of Engineering & Technology", domain: "cmrcet.ac.in" }
+    "CMR Engineering College",
+    "CMR Institute of Technology", 
+    "CMR Technical Campus",
+    "CMR College of Engineering & Technology",
+    "CMR Group of Institutions"
   ];
 
-  const academicYears = [
-    { value: "1", label: "1st Year" },
-    { value: "2", label: "2nd Year" },
-    { value: "3", label: "3rd Year" },
-    { value: "4", label: "4th Year" },
-    { value: "pg1", label: "PG 1st Year" },
-    { value: "pg2", label: "PG 2nd Year" }
-  ];
-
+  const years = ["1st Year", "2nd Year", "3rd Year", "4th Year", "5th Year"];
+  
   const branches = [
     "Computer Science Engineering",
-    "Information Technology", 
-    "Electronics & Communication Engineering",
-    "Electrical & Electronics Engineering",
+    "Information Technology",
+    "Electronics and Communication",
+    "Electrical and Electronics",
     "Mechanical Engineering",
     "Civil Engineering",
     "Chemical Engineering",
     "Biotechnology",
     "Aerospace Engineering",
-    "Data Science",
-    "Artificial Intelligence & Machine Learning"
+    "Other"
   ];
 
-  const handleInputChange = (field: string, value: string) => {
-    setFormData(prev => ({
-      ...prev,
-      [field]: value
-    }));
-    // Clear error when user starts typing
-    if (error) setError("");
-  };
-
-  const validateForm = () => {
-    // Basic validation
-    if (!formData.firstName || !formData.lastName) {
-      setError("Please enter your full name");
-      return false;
-    }
-
-    if (!formData.email) {
-      setError("Please enter your college email");
-      return false;
-    }
-
-    if (!formData.college) {
-      setError("Please select your college");
-      return false;
-    }
-
-    // Email validation with college domain
-    const selectedCollege = colleges.find(c => c.value === formData.college);
-    if (selectedCollege && !formData.email.endsWith(`@${selectedCollege.domain}`)) {
-      setError(`Please use your ${selectedCollege.label} email (@${selectedCollege.domain})`);
-      return false;
-    }
-
-    if (formData.password.length < 6) {
-      setError("Password must be at least 6 characters long");
-      return false;
-    }
-
-    if (formData.password !== formData.confirmPassword) {
-      setError("Passwords do not match");
-      return false;
-    }
-
-    if (!formData.year || !formData.branch) {
-      setError("Please select your academic year and branch");
-      return false;
-    }
-
-    if (!formData.rollNumber) {
-      setError("Please enter your roll number");
-      return false;
-    }
-
-    return true;
-  };
-
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handlePhoneSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setError("");
-    setIsLoading(true);
+    await sendOTP();
+  };
 
-    if (!validateForm()) {
-      setIsLoading(false);
+  const handleOTPSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    // For signup, we need to show profile form after OTP verification
+    const result = await verifyOTP();
+    if (result) {
+      setShowProfileForm(true);
+    }
+  };
+
+  const handleProfileSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    // Validate profile data
+    if (!profileData.firstName || !profileData.lastName || !profileData.college || !profileData.year || !profileData.branch) {
+      toast({
+        title: "Incomplete Profile",
+        description: "Please fill in all required fields",
+        variant: "destructive",
+      });
       return;
     }
 
-    try {
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 2000));
+    setIsCreatingProfile(true);
 
-      // Mock registration success
+    try {
+      // Simulate profile creation
+      await new Promise(resolve => setTimeout(resolve, 1000));
+
+      // Create complete user profile
+      const userData = {
+        phoneNumber,
+        firstName: profileData.firstName,
+        lastName: profileData.lastName,
+        fullName: `${profileData.firstName} ${profileData.lastName}`,
+        college: profileData.college,
+        year: profileData.year,
+        branch: profileData.branch,
+        loginMethod: 'phone',
+        createdAt: new Date().toISOString(),
+        isNewUser: true,
+      };
+
+      // Save to localStorage (simulate backend)
+      localStorage.setItem('campuscrew_user', JSON.stringify(userData));
+      localStorage.setItem('campuscrew_auth_token', `phone_signup_${Date.now()}`);
+      localStorage.setItem('campuscrew_auth_method', 'phone');
+
       toast({
-        title: "Registration Successful!",
-        description: "Welcome to CampusCrew! You can now login with your credentials.",
+        title: "Account Created Successfully!",
+        description: "Welcome to CampusCrew! Your account has been created.",
       });
 
-      // Navigate to login page
-      navigate("/login");
-    } catch (err) {
-      setError("Registration failed. Please try again.");
+      navigate('/');
+    } catch (error) {
+      console.error('Error creating profile:', error);
+      toast({
+        title: "Profile Creation Failed",
+        description: "Failed to create your profile. Please try again.",
+        variant: "destructive",
+      });
     } finally {
-      setIsLoading(false);
+      setIsCreatingProfile(false);
     }
   };
 
@@ -153,255 +141,288 @@ const SignUp = () => {
     navigate("/login");
   };
 
-  // Render Google Sign-in button when component mounts and Google Auth is initialized
-  useEffect(() => {
-    if (isInitialized) {
-      const timer = setTimeout(() => {
-        renderGoogleButton('google-signup-button', {
-          theme: 'outline',
-          size: 'large',
-          text: 'signup_with',
-          shape: 'rectangular',
-          width: 280,
-        });
-      }, 100);
+  const formatTimeRemaining = (seconds: number): string => {
+    const minutes = Math.floor(seconds / 60);
+    const remainingSeconds = seconds % 60;
+    return `${minutes}:${remainingSeconds.toString().padStart(2, '0')}`;
+  };
 
-      return () => clearTimeout(timer);
-    }
-  }, [isInitialized, renderGoogleButton]);
+  const renderPhoneStep = () => (
+    <form onSubmit={handlePhoneSubmit} className="space-y-4">
+      {/* Phone Number Input */}
+      <div className="space-y-2">
+        <Label htmlFor="phone">Phone Number</Label>
+        <div className="relative">
+          <Phone className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+          <Input
+            id="phone"
+            type="tel"
+            placeholder="+91 98765 43210"
+            value={phoneNumber}
+            onChange={(e) => setPhoneNumber(e.target.value)}
+            className="pl-10"
+            required
+          />
+        </div>
+        {phoneError && (
+          <p className="text-sm text-red-600">{phoneError}</p>
+        )}
+      </div>
 
-  return (
-    <div className="min-h-screen bg-gray-50 flex items-center justify-center px-4 py-8">
-      <div className="w-full max-w-2xl">
-        {/* Header */}
-        <div className="text-center mb-8">
-          <div className="flex items-center justify-center gap-3 mb-4">
-            <div className="w-12 h-12 bg-blue-500 rounded-lg flex items-center justify-center">
-              <GraduationCap className="w-7 h-7 text-white" />
-            </div>
-            <h1 className="text-3xl font-bold text-blue-600">CampusCrew</h1>
+      {/* Demo Credentials */}
+      <div className="bg-blue-50 p-3 rounded-lg">
+        <p className="text-sm text-blue-700 font-medium mb-1">Demo Credentials:</p>
+        <p className="text-xs text-blue-600">Phone: +919876543210</p>
+        <p className="text-xs text-blue-600">OTP: 123456</p>
+      </div>
+
+      {/* Send OTP Button */}
+      <Button
+        type="submit"
+        className="w-full bg-blue-500 hover:bg-blue-600"
+        disabled={!isValidPhone || isSendingOTP}
+      >
+        {isSendingOTP ? "Sending OTP..." : "Send OTP"}
+      </Button>
+    </form>
+  );
+
+  const renderOTPStep = () => (
+    <div className="space-y-4">
+      {/* Back Button */}
+      <Button
+        variant="ghost"
+        onClick={resetFlow}
+        className="mb-4 p-0 h-auto text-blue-600 hover:text-blue-800"
+      >
+        <ArrowLeft className="w-4 h-4 mr-2" />
+        Change Phone Number
+      </Button>
+
+      {/* Phone Number Display */}
+      <div className="text-center mb-4">
+        <p className="text-sm text-gray-600">
+          Enter the 6-digit code sent to
+        </p>
+        <p className="font-medium text-gray-900">{phoneNumber}</p>
+      </div>
+
+      <form onSubmit={handleOTPSubmit} className="space-y-4">
+        {/* OTP Input */}
+        <div className="space-y-2">
+          <Label className="block text-center">Verification Code</Label>
+          <div className="flex justify-center">
+            <OtpInput
+              value={otp}
+              onChange={setOtp}
+              numInputs={6}
+              separator={<span className="mx-1"></span>}
+              inputStyle={{
+                width: '40px',
+                height: '40px',
+                margin: '0 4px',
+                fontSize: '16px',
+                borderRadius: '8px',
+                border: '1px solid #d1d5db',
+                textAlign: 'center',
+                outline: 'none',
+              }}
+              focusStyle={{
+                border: '2px solid #3b82f6',
+              }}
+            />
           </div>
-          <p className="text-gray-600">Join the CMR Group community</p>
         </div>
 
-        {/* Sign Up Form */}
+        {/* Timer and Resend */}
+        <div className="text-center">
+          {timeRemaining > 0 ? (
+            <p className="text-sm text-gray-600">
+              Resend OTP in {formatTimeRemaining(timeRemaining)}
+            </p>
+          ) : (
+            <Button
+              type="button"
+              variant="ghost"
+              onClick={resendOTP}
+              disabled={isSendingOTP}
+              className="text-blue-600 hover:text-blue-800"
+            >
+              <RotateCcw className="w-4 h-4 mr-2" />
+              {isSendingOTP ? "Sending..." : "Resend OTP"}
+            </Button>
+          )}
+        </div>
+
+        {/* Verify Button */}
+        <Button
+          type="submit"
+          className="w-full bg-blue-500 hover:bg-blue-600"
+          disabled={otp.length !== 6 || isVerifyingOTP}
+        >
+          {isVerifyingOTP ? "Verifying..." : "Verify Phone"}
+        </Button>
+      </form>
+    </div>
+  );
+
+  const renderProfileStep = () => (
+    <form onSubmit={handleProfileSubmit} className="space-y-4">
+      <div className="text-center mb-4">
+        <h3 className="text-lg font-medium text-gray-900">Complete Your Profile</h3>
+        <p className="text-sm text-gray-600">Tell us a bit about yourself</p>
+      </div>
+
+      {/* Name Fields */}
+      <div className="grid grid-cols-2 gap-4">
+        <div className="space-y-2">
+          <Label htmlFor="firstName">First Name</Label>
+          <Input
+            id="firstName"
+            value={profileData.firstName}
+            onChange={(e) => setProfileData(prev => ({ ...prev, firstName: e.target.value }))}
+            placeholder="John"
+            required
+          />
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor="lastName">Last Name</Label>
+          <Input
+            id="lastName"
+            value={profileData.lastName}
+            onChange={(e) => setProfileData(prev => ({ ...prev, lastName: e.target.value }))}
+            placeholder="Doe"
+            required
+          />
+        </div>
+      </div>
+
+      {/* College */}
+      <div className="space-y-2">
+        <Label htmlFor="college">College</Label>
+        <Select value={profileData.college} onValueChange={(value) => setProfileData(prev => ({ ...prev, college: value }))}>
+          <SelectTrigger>
+            <SelectValue placeholder="Select your college" />
+          </SelectTrigger>
+          <SelectContent>
+            {colleges.map((college) => (
+              <SelectItem key={college} value={college}>
+                {college}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
+
+      {/* Year and Branch */}
+      <div className="grid grid-cols-2 gap-4">
+        <div className="space-y-2">
+          <Label htmlFor="year">Year</Label>
+          <Select value={profileData.year} onValueChange={(value) => setProfileData(prev => ({ ...prev, year: value }))}>
+            <SelectTrigger>
+              <SelectValue placeholder="Select year" />
+            </SelectTrigger>
+            <SelectContent>
+              {years.map((year) => (
+                <SelectItem key={year} value={year}>
+                  {year}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor="branch">Branch</Label>
+          <Select value={profileData.branch} onValueChange={(value) => setProfileData(prev => ({ ...prev, branch: value }))}>
+            <SelectTrigger>
+              <SelectValue placeholder="Select branch" />
+            </SelectTrigger>
+            <SelectContent>
+              {branches.map((branch) => (
+                <SelectItem key={branch} value={branch}>
+                  {branch}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+      </div>
+
+      {/* Create Account Button */}
+      <Button
+        type="submit"
+        className="w-full bg-blue-500 hover:bg-blue-600"
+        disabled={isCreatingProfile}
+      >
+        {isCreatingProfile ? "Creating Account..." : "Create Account"}
+      </Button>
+    </form>
+  );
+
+  const getCurrentStep = () => {
+    if (showProfileForm) return 'profile';
+    return step;
+  };
+
+  const getStepTitle = () => {
+    switch (getCurrentStep()) {
+      case 'phone': return 'Sign Up';
+      case 'otp': return 'Verify Phone';
+      case 'profile': return 'Complete Profile';
+      default: return 'Sign Up';
+    }
+  };
+
+  const getStepIcon = () => {
+    switch (getCurrentStep()) {
+      case 'phone': return <Phone className="w-5 h-5" />;
+      case 'otp': return <MessageSquare className="w-5 h-5" />;
+      case 'profile': return <User className="w-5 h-5" />;
+      default: return <Phone className="w-5 h-5" />;
+    }
+  };
+
+  const renderCurrentStep = () => {
+    switch (getCurrentStep()) {
+      case 'phone': return renderPhoneStep();
+      case 'otp': return renderOTPStep();
+      case 'profile': return renderProfileStep();
+      default: return renderPhoneStep();
+    }
+  };
+
+  return (
+    <div className="min-h-screen bg-gray-50 flex items-center justify-center px-3 sm:px-4 py-8">
+      <div className="w-full max-w-md">
+        {/* Header */}
+        <div className="text-center mb-6 sm:mb-8">
+          <div className="flex items-center justify-center gap-2 sm:gap-3 mb-3 sm:mb-4">
+            <div className="w-10 h-10 sm:w-12 sm:h-12 bg-blue-500 rounded-lg flex items-center justify-center">
+              <GraduationCap className="w-5 h-5 sm:w-7 sm:h-7 text-white" />
+            </div>
+            <h1 className="text-2xl sm:text-3xl font-bold text-blue-600">CampusCrew</h1>
+          </div>
+          <p className="text-sm sm:text-base text-gray-600">
+            {getCurrentStep() === 'phone' && 'Create your student account'}
+            {getCurrentStep() === 'otp' && 'Verify your phone number'}
+            {getCurrentStep() === 'profile' && 'Complete your profile'}
+          </p>
+        </div>
+
+        {/* SignUp Form */}
         <Card>
           <CardHeader>
-            <CardTitle className="text-center text-xl">Create Your Account</CardTitle>
+            <CardTitle className="text-center text-xl flex items-center justify-center gap-2">
+              {getStepIcon()}
+              {getStepTitle()}
+            </CardTitle>
           </CardHeader>
           <CardContent>
-            <form onSubmit={handleSubmit} className="space-y-4">
-              {/* Error Alert */}
-              {error && (
-                <Alert variant="destructive">
-                  <AlertDescription>{error}</AlertDescription>
-                </Alert>
-              )}
+            {renderCurrentStep()}
 
-              {/* Name Fields */}
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="firstName">First Name *</Label>
-                  <div className="relative">
-                    <User className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
-                    <Input
-                      id="firstName"
-                      placeholder="First name"
-                      value={formData.firstName}
-                      onChange={(e) => handleInputChange("firstName", e.target.value)}
-                      className="pl-10"
-                      required
-                    />
-                  </div>
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="lastName">Last Name *</Label>
-                  <Input
-                    id="lastName"
-                    placeholder="Last name"
-                    value={formData.lastName}
-                    onChange={(e) => handleInputChange("lastName", e.target.value)}
-                    required
-                  />
-                </div>
-              </div>
-
-              {/* College Selection */}
-              <div className="space-y-2">
-                <Label htmlFor="college">College *</Label>
-                <Select value={formData.college} onValueChange={(value) => handleInputChange("college", value)}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select your college" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {colleges.map((college) => (
-                      <SelectItem key={college.value} value={college.value}>
-                        {college.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              {/* Email */}
-              <div className="space-y-2">
-                <Label htmlFor="email">College Email *</Label>
-                <div className="relative">
-                  <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
-                  <Input
-                    id="email"
-                    type="email"
-                    placeholder={formData.college ? `student@${colleges.find(c => c.value === formData.college)?.domain}` : "student@college.ac.in"}
-                    value={formData.email}
-                    onChange={(e) => handleInputChange("email", e.target.value)}
-                    className="pl-10"
-                    required
-                  />
-                </div>
-              </div>
-
-              {/* Academic Details */}
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="year">Academic Year *</Label>
-                  <Select value={formData.year} onValueChange={(value) => handleInputChange("year", value)}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select year" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {academicYears.map((year) => (
-                        <SelectItem key={year.value} value={year.value}>
-                          {year.label}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="rollNumber">Roll Number *</Label>
-                  <Input
-                    id="rollNumber"
-                    placeholder="e.g., 21R01A0501"
-                    value={formData.rollNumber}
-                    onChange={(e) => handleInputChange("rollNumber", e.target.value.toUpperCase())}
-                    required
-                  />
-                </div>
-              </div>
-
-              {/* Branch */}
-              <div className="space-y-2">
-                <Label htmlFor="branch">Branch/Department *</Label>
-                <Select value={formData.branch} onValueChange={(value) => handleInputChange("branch", value)}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select your branch" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {branches.map((branch) => (
-                      <SelectItem key={branch} value={branch}>
-                        {branch}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              {/* Phone Number */}
-              <div className="space-y-2">
-                <Label htmlFor="phone">Phone Number (Optional)</Label>
-                <div className="relative">
-                  <Phone className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
-                  <Input
-                    id="phone"
-                    type="tel"
-                    placeholder="+91 9876543210"
-                    value={formData.phone}
-                    onChange={(e) => handleInputChange("phone", e.target.value)}
-                    className="pl-10"
-                  />
-                </div>
-              </div>
-
-              {/* Password Fields */}
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="password">Password *</Label>
-                  <div className="relative">
-                    <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
-                    <Input
-                      id="password"
-                      type={showPassword ? "text" : "password"}
-                      placeholder="Create password"
-                      value={formData.password}
-                      onChange={(e) => handleInputChange("password", e.target.value)}
-                      className="pl-10 pr-10"
-                      required
-                    />
-                    <button
-                      type="button"
-                      onClick={() => setShowPassword(!showPassword)}
-                      className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
-                    >
-                      {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                    </button>
-                  </div>
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="confirmPassword">Confirm Password *</Label>
-                  <div className="relative">
-                    <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
-                    <Input
-                      id="confirmPassword"
-                      type={showConfirmPassword ? "text" : "password"}
-                      placeholder="Confirm password"
-                      value={formData.confirmPassword}
-                      onChange={(e) => handleInputChange("confirmPassword", e.target.value)}
-                      className="pl-10 pr-10"
-                      required
-                    />
-                    <button
-                      type="button"
-                      onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                      className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
-                    >
-                      {showConfirmPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                    </button>
-                  </div>
-                </div>
-              </div>
-
-              {/* Sign Up Button */}
-              <Button
-                type="submit"
-                className="w-full bg-blue-500 hover:bg-blue-600"
-                disabled={isLoading}
-              >
-                {isLoading ? "Creating Account..." : "Create Account"}
-              </Button>
-
-              {/* Divider */}
-              <div className="relative">
-                <div className="absolute inset-0 flex items-center">
-                  <span className="w-full border-t" />
-                </div>
-                <div className="relative flex justify-center text-xs uppercase">
-                  <span className="bg-white px-2 text-gray-500">Or continue with</span>
-                </div>
-              </div>
-
-              {/* Google OAuth Button */}
-              <div className="flex justify-center">
-                <div id="google-signup-button" className="w-full max-w-[280px]">
-                  {!isInitialized && (
-                    <div className="w-full h-[40px] bg-gray-100 rounded border flex items-center justify-center">
-                      <span className="text-sm text-gray-500">Loading Google Sign-Up...</span>
-                    </div>
-                  )}
-                </div>
-              </div>
-
-              {/* Login Link */}
-              <div className="text-center pt-4 border-t">
+            {/* Login Link - only show on phone step */}
+            {getCurrentStep() === 'phone' && (
+              <div className="text-center pt-4 border-t mt-6">
                 <p className="text-sm text-gray-600">
                   Already have an account?{" "}
                   <button
@@ -413,7 +434,7 @@ const SignUp = () => {
                   </button>
                 </p>
               </div>
-            </form>
+            )}
           </CardContent>
         </Card>
 
