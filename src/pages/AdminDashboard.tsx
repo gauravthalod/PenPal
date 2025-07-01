@@ -268,7 +268,7 @@ const AdminDashboard = () => {
               <Shield className="w-8 h-8" />
               <div>
                 <h1 className="text-2xl font-bold">Admin Dashboard</h1>
-                <p className="text-red-100">CampusConnect Administration Panel</p>
+                <p className="text-red-100">CampusCrew Administration Panel</p>
               </div>
             </div>
           </div>

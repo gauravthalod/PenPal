@@ -137,7 +137,7 @@ const AdminLogin = () => {
             </div>
           </div>
           <h1 className="text-3xl font-bold text-white mb-2">Admin Access</h1>
-          <p className="text-red-200">CampusConnect Administration Panel</p>
+          <p className="text-red-200">CampusCrew Administration Panel</p>
         </div>
 
         {/* Login Form */}

@@ -1,8 +1,8 @@
-# 🎓 CampusConnect - CMR Group Student Platform
+# 🎓 CampusCrew - CMR Group Student Platform
 
 A comprehensive campus collaboration platform designed specifically for CMR Group of Institutions students. Connect, collaborate, and grow together!
 
-![CampusConnect](https://img.shields.io/badge/CampusConnect-v1.0-blue.svg)
+![CampusCrew](https://img.shields.io/badge/CampusCrew-v1.0-blue.svg)
 ![React](https://img.shields.io/badge/React-18.x-61DAFB.svg)
 ![TypeScript](https://img.shields.io/badge/TypeScript-5.x-3178C6.svg)
 ![Tailwind](https://img.shields.io/badge/Tailwind-3.x-38B2AC.svg)
@@ -111,7 +111,7 @@ Navigate to `http://localhost:8080` (or the port shown in terminal)
 
 ## 📱 **Responsive Design**
 
-CampusConnect is fully responsive and works seamlessly on:
+CampusCrew is fully responsive and works seamlessly on:
 - 📱 **Mobile devices** (iOS/Android)
 - 📱 **Tablets** (iPad/Android tablets)
 - 💻 **Desktop computers** (Windows/Mac/Linux)
@@ -130,7 +130,7 @@ CampusConnect is fully responsive and works seamlessly on:
 ### **Environment Variables**
 ```env
 # App Configuration
-VITE_APP_NAME=CampusConnect
+VITE_APP_NAME=CampusCrew
 VITE_APP_VERSION=1.0.0
 
 # College Email Domains
@@ -197,14 +197,14 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 - **React Community** for amazing tools
 - **Tailwind CSS** for beautiful styling
 - **Shadcn/ui** for component library
-- **All contributors** who help improve CampusConnect
+- **All contributors** who help improve CampusCrew
 
 ## 📞 **Support**
 
 Need help? Reach out to us:
 
-- 📧 **Email**: support@campusconnect.cmr.edu.in
-- 💬 **Discord**: [Join our community](https://discord.gg/campusconnect)
+- 📧 **Email**: support@campuscrew.cmr.edu.in
+- 💬 **Discord**: [Join our community](https://discord.gg/campuscrew)
 - 🐛 **Issues**: [GitHub Issues](https://github.com/gauravthalod/CampusCrew/issues)
 - 📖 **Documentation**: [Wiki](https://github.com/gauravthalod/CampusCrew/wiki)
 

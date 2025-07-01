@@ -96,7 +96,7 @@ const Login = () => {
       if (formData.email === "karthik@cmrec.ac.in" && formData.password === "password123") {
         toast({
           title: "Login Successful",
-          description: "Welcome back to CampusConnect!",
+          description: "Welcome back to CampusCrew!",
         });
         navigate("/");
       } else {
@@ -129,7 +129,7 @@ const Login = () => {
             <div className="w-10 h-10 sm:w-12 sm:h-12 bg-blue-500 rounded-lg flex items-center justify-center">
               <GraduationCap className="w-5 h-5 sm:w-7 sm:h-7 text-white" />
             </div>
-            <h1 className="text-2xl sm:text-3xl font-bold text-blue-600">CampusConnect</h1>
+            <h1 className="text-2xl sm:text-3xl font-bold text-blue-600">CampusCrew</h1>
           </div>
           <p className="text-sm sm:text-base text-gray-600">Sign in to your student account</p>
         </div>

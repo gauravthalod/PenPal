@@ -97,7 +97,7 @@ const Notifications = () => {
     {
       id: 7,
       type: "system",
-      title: "Welcome to CampusConnect",
+      title: "Welcome to CampusCrew",
       message: "Complete your profile to start receiving more gig opportunities",
       time: "2 days ago",
       isRead: true

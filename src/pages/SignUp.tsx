@@ -135,7 +135,7 @@ const SignUp = () => {
       // Mock registration success
       toast({
         title: "Registration Successful!",
-        description: "Welcome to CampusConnect! You can now login with your credentials.",
+        description: "Welcome to CampusCrew! You can now login with your credentials.",
       });
 
       // Navigate to login page
@@ -160,7 +160,7 @@ const SignUp = () => {
             <div className="w-12 h-12 bg-blue-500 rounded-lg flex items-center justify-center">
               <GraduationCap className="w-7 h-7 text-white" />
             </div>
-            <h1 className="text-3xl font-bold text-blue-600">CampusConnect</h1>
+            <h1 className="text-3xl font-bold text-blue-600">CampusCrew</h1>
           </div>
           <p className="text-gray-600">Join the CMR Group community</p>
         </div>
