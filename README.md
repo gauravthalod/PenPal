@@ -1,4 +1,4 @@
-# 🎓 CampusConnect - CMR Group Student Platform
+# 🎓 CampusCrew - Student Platform
 
 A comprehensive campus collaboration platform designed specifically for CMR Group of Institutions students. Connect, collaborate, and grow together!
 
