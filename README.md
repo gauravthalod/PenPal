@@ -98,10 +98,10 @@ Navigate to `http://localhost:8080` (or the port shown in terminal)
 - **React Router** for navigation
 
 ### **Backend Ready**
-- **Supabase** integration ready (optional)
-- **Real-time subscriptions** support
-- **File storage** capabilities
-- **Authentication** infrastructure
+- **Mock API** for development and testing
+- **Local storage** for data persistence
+- **Authentication** simulation
+- **Extensible architecture** for future backend integration
 
 ### **Development Tools**
 - **ESLint** for code quality
