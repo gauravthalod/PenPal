@@ -1,6 +1,6 @@
 
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
+import { Briefcase, Zap } from "lucide-react";
 
 interface NavigationTabsProps {
   activeTab: string;
@@ -9,30 +9,31 @@ interface NavigationTabsProps {
 
 const NavigationTabs = ({ activeTab, onTabChange }: NavigationTabsProps) => {
   const tabs = [
-    { id: "trade", label: "Trade", icon: "💼" },
-    { id: "buzz", label: "Buzz", icon: "⚡" }
+    { id: "trade", label: "Trade", icon: Briefcase },
+    { id: "buzz", label: "Buzz", icon: Zap }
   ];
 
   return (
-    <div className="bg-white border-b">
-      <div className="container mx-auto px-4">
-        <div className="flex space-x-1">
-          {tabs.map((tab) => (
+    <div className="mb-4 sm:mb-6">
+      <div className="flex justify-center gap-2">
+        {tabs.map((tab) => {
+          const IconComponent = tab.icon;
+          return (
             <Button
               key={tab.id}
-              variant={activeTab === tab.id ? "default" : "ghost"}
-              className={`rounded-none border-b-2 ${
-                activeTab === tab.id 
-                  ? "border-blue-500 bg-blue-50 text-blue-600" 
-                  : "border-transparent hover:bg-gray-50"
+              variant={activeTab === tab.id ? "default" : "outline"}
+              className={`rounded-full px-4 sm:px-6 py-2 text-sm sm:text-base ${
+                activeTab === tab.id
+                  ? "bg-blue-500 hover:bg-blue-600 text-white"
+                  : "bg-white border-gray-200 text-gray-600 hover:bg-gray-50"
               }`}
               onClick={() => onTabChange(tab.id)}
             >
-              <span className="mr-2">{tab.icon}</span>
+              <IconComponent className="w-3 h-3 sm:w-4 sm:h-4 mr-1 sm:mr-2" />
               {tab.label}
             </Button>
-          ))}
-        </div>
+          );
+        })}
       </div>
     </div>
   );
