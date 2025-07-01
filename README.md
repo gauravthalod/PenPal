@@ -17,9 +17,11 @@ A comprehensive campus collaboration platform designed specifically for CMR Grou
 ## ✨ **Features**
 
 ### 🔐 **Authentication System**
-- College email validation for secure access
-- User profiles with college and skill information
-- Secure login/logout with session management
+- **Google OAuth** integration for seamless sign-in
+- **College email validation** for secure access (CMR Group domains)
+- **Dual authentication** - Google OAuth or traditional email/password
+- **User profiles** with college and skill information
+- **Secure session management** with automatic college detection
 
 ### 💬 **Real-Time Communication**
 - **Group Chat**: Connect with all CMR students in one place
@@ -79,12 +81,19 @@ cp .env.example .env.local
 # Edit .env.local with your configuration
 ```
 
-4. **Start the development server**
+4. **Set up Google OAuth (Optional)**
+```bash
+# Copy the setup guide and follow instructions
+cp GOOGLE_OAUTH_SETUP.md GOOGLE_OAUTH_SETUP_COPY.md
+# Edit .env.local with your Google OAuth credentials
+```
+
+5. **Start the development server**
 ```bash
 npm run dev
 ```
 
-5. **Open your browser**
+6. **Open your browser**
 Navigate to `http://localhost:8080` (or the port shown in terminal)
 
 ## 🛠️ **Tech Stack**
