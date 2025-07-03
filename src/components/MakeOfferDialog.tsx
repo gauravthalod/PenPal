@@ -5,20 +5,28 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { MessageSquare, X } from "lucide-react";
+import { useAuth } from "@/contexts/AuthContext";
+import { offerService } from "@/services/database";
+import { useToast } from "@/hooks/use-toast";
 
 interface MakeOfferDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onSubmit: (offerData: { gigId: number; offerPrice: number; message: string }) => void;
+  onSubmit?: (offerData: { gigId: string; offerPrice: number; message: string }) => void;
   gig: {
-    id: number;
+    id: string;
     title: string;
     price: number;
     poster: string;
+    postedBy: string;
+    postedByName: string;
   } | null;
 }
 
 const MakeOfferDialog = ({ open, onOpenChange, onSubmit, gig }: MakeOfferDialogProps) => {
+  const { userProfile } = useAuth();
+  const { toast } = useToast();
+  const [isLoading, setIsLoading] = useState(false);
   const [formData, setFormData] = useState({
     offerPrice: "",
     message: ""
@@ -31,32 +39,85 @@ const MakeOfferDialog = ({ open, onOpenChange, onSubmit, gig }: MakeOfferDialogP
     }));
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     // Basic validation
     if (!formData.offerPrice || !formData.message || !gig) {
+      toast({
+        title: "Validation Error",
+        description: "Please fill in all required fields.",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    if (!userProfile) {
+      toast({
+        title: "Authentication Error",
+        description: "Please log in to make an offer.",
+        variant: "destructive"
+      });
       return;
     }
 
     const offerPrice = parseFloat(formData.offerPrice);
     if (isNaN(offerPrice) || offerPrice <= 0) {
+      toast({
+        title: "Validation Error",
+        description: "Please enter a valid offer price greater than 0.",
+        variant: "destructive"
+      });
       return;
     }
 
-    onSubmit({
-      gigId: gig.id,
-      offerPrice: offerPrice,
-      message: formData.message.trim()
-    });
-    
-    // Reset form
-    setFormData({
-      offerPrice: "",
-      message: ""
-    });
-    
-    onOpenChange(false);
+    setIsLoading(true);
+
+    try {
+      // Create offer data for Firebase
+      const offerData = {
+        gigId: gig.id,
+        gigTitle: gig.title,
+        offeredBy: userProfile.uid,
+        offeredByName: `${userProfile.firstName} ${userProfile.lastName}`.trim(),
+        gigPostedBy: gig.postedBy,
+        message: formData.message.trim(),
+        proposedBudget: offerPrice,
+        status: 'pending' as const
+      };
+
+      // Save to Firebase
+      const createdOffer = await offerService.createOffer(offerData);
+
+      toast({
+        title: "Offer Submitted Successfully!",
+        description: `Your offer of ₹${offerPrice} has been sent to the gig poster. You'll be notified when they respond.`,
+      });
+
+      // Call onSubmit if provided (for any additional handling)
+      onSubmit?.({
+        gigId: gig.id,
+        offerPrice: offerPrice,
+        message: formData.message.trim()
+      });
+
+      // Reset form
+      setFormData({
+        offerPrice: "",
+        message: ""
+      });
+
+      onOpenChange(false);
+    } catch (error) {
+      console.error("Error submitting offer:", error);
+      toast({
+        title: "Error",
+        description: "Failed to submit offer. Please try again.",
+        variant: "destructive"
+      });
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const handleCancel = () => {
@@ -147,9 +208,9 @@ const MakeOfferDialog = ({ open, onOpenChange, onSubmit, gig }: MakeOfferDialogP
             <Button
               type="submit"
               className="flex-1 bg-blue-500 hover:bg-blue-600"
-              disabled={!formData.offerPrice || !formData.message}
+              disabled={!formData.offerPrice || !formData.message || isLoading}
             >
-              Send Offer
+              {isLoading ? "Sending..." : "Send Offer"}
             </Button>
           </div>
         </form>

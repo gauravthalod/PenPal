@@ -1,14 +1,17 @@
 
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Search, Plus, ChevronDown, Tag, DollarSign, Calendar } from "lucide-react";
+import { Search, Plus, ChevronDown, Tag, DollarSign, Calendar, Loader2, X, RefreshCw } from "lucide-react";
 import GigCard from "./GigCard";
 import PostGigDialog from "./PostGigDialog";
 import MakeOfferDialog from "./MakeOfferDialog";
+import { Gig } from "@/services/database";
 
-interface Gig {
-  id: number;
+// Transform Firebase Gig to component Gig format
+interface ComponentGig {
+  id: string;
   title: string;
   description: string;
   category: string;
@@ -17,25 +20,81 @@ interface Gig {
   poster: string;
   university: string;
   timePosted: string;
+  postedBy: string;
+  postedByName: string;
 }
 
 interface GigFeedProps {
   gigs: Gig[];
-  onMakeOffer?: (offerData: { gigId: number; offerPrice: number; message: string }) => void;
+  loading?: boolean;
+  onMakeOffer?: (offerData: { gigId: string; offerPrice: number; message: string }) => void;
   onPostGig?: (gigData: any) => void;
+  onRefresh?: () => void;
 }
 
-const GigFeed = ({ gigs, onMakeOffer, onPostGig }: GigFeedProps) => {
+const GigFeed = ({ gigs, loading = false, onMakeOffer, onPostGig, onRefresh }: GigFeedProps) => {
+  const [searchQuery, setSearchQuery] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("");
   const [selectedPrice, setSelectedPrice] = useState("");
   const [selectedDeadline, setSelectedDeadline] = useState("");
   const [showPostGigDialog, setShowPostGigDialog] = useState(false);
   const [showMakeOfferDialog, setShowMakeOfferDialog] = useState(false);
-  const [selectedGig, setSelectedGig] = useState<Gig | null>(null);
+  const [selectedGig, setSelectedGig] = useState<ComponentGig | null>(null);
 
   const mainCategories = ["Academic", "Creative", "Tech", "Errands", "Events"];
 
-  const filteredGigs = gigs.filter(gig => {
+  // Transform Firebase gigs to component format
+  const transformedGigs: ComponentGig[] = gigs.map(gig => {
+    const createdAt = gig.createdAt instanceof Date ? gig.createdAt : new Date(gig.createdAt);
+    const deadline = gig.deadline instanceof Date ? gig.deadline : new Date(gig.deadline);
+
+    // Calculate time posted
+    const now = new Date();
+    const diffMs = now.getTime() - createdAt.getTime();
+    const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
+    const diffDays = Math.floor(diffHours / 24);
+
+    let timePosted;
+    if (diffDays > 0) {
+      timePosted = `${diffDays}d ago`;
+    } else if (diffHours > 0) {
+      timePosted = `${diffHours}h ago`;
+    } else {
+      timePosted = "Just now";
+    }
+
+    return {
+      id: gig.id || '',
+      title: gig.title,
+      description: gig.description,
+      category: gig.category,
+      price: gig.budget,
+      deadline: deadline.toLocaleDateString('en-US', {
+        month: 'short',
+        day: 'numeric',
+        year: 'numeric'
+      }),
+      poster: gig.postedByName.split(' ')[0], // First name only for privacy
+      university: gig.college,
+      timePosted,
+      postedBy: gig.postedBy,
+      postedByName: gig.postedByName
+    };
+  });
+
+  const filteredGigs = transformedGigs.filter(gig => {
+    // Search filter
+    if (searchQuery) {
+      const query = searchQuery.toLowerCase();
+      const matchesTitle = gig.title.toLowerCase().includes(query);
+      const matchesDescription = gig.description.toLowerCase().includes(query);
+      const matchesCategory = gig.category.toLowerCase().includes(query);
+      const matchesPoster = gig.poster.toLowerCase().includes(query);
+
+      if (!matchesTitle && !matchesDescription && !matchesCategory && !matchesPoster) {
+        return false;
+      }
+    }
     // Category filter
     if (selectedCategory && selectedCategory !== "All") {
       if (selectedCategory === "Others") {
@@ -74,14 +133,15 @@ const GigFeed = ({ gigs, onMakeOffer, onPostGig }: GigFeedProps) => {
 
   const handlePostGigSubmit = (gigData: any) => {
     onPostGig?.(gigData);
+    // Don't auto-refresh to avoid errors - user can manually refresh
   };
 
-  const handleMakeOfferClick = (gig: Gig) => {
+  const handleMakeOfferClick = (gig: ComponentGig) => {
     setSelectedGig(gig);
     setShowMakeOfferDialog(true);
   };
 
-  const handleMakeOfferSubmit = (offerData: { gigId: number; offerPrice: number; message: string }) => {
+  const handleMakeOfferSubmit = (offerData: { gigId: string; offerPrice: number; message: string }) => {
     onMakeOffer?.(offerData);
   };
 
@@ -138,6 +198,36 @@ const GigFeed = ({ gigs, onMakeOffer, onPostGig }: GigFeedProps) => {
           <Plus className="w-3 h-3 sm:w-4 sm:h-4 mr-1 sm:mr-2" />
           Post Gig
         </Button>
+        <Button
+          variant="outline"
+          className="px-4 sm:px-6 border-gray-300 text-sm sm:text-base"
+          onClick={() => onRefresh?.()}
+          disabled={loading}
+        >
+          <RefreshCw className={`w-3 h-3 sm:w-4 sm:h-4 mr-1 sm:mr-2 ${loading ? 'animate-spin' : ''}`} />
+          Refresh
+        </Button>
+      </div>
+
+      {/* Search Bar */}
+      <div className="flex justify-center">
+        <div className="relative w-full max-w-md">
+          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+          <Input
+            placeholder="Search gigs by title, description, category..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="pl-10 pr-10 bg-white border-gray-300"
+          />
+          {searchQuery && (
+            <button
+              onClick={() => setSearchQuery("")}
+              className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          )}
+        </div>
       </div>
 
       {/* Filter Dropdowns */}
@@ -194,13 +284,43 @@ const GigFeed = ({ gigs, onMakeOffer, onPostGig }: GigFeedProps) => {
 
       {/* Gigs List */}
       <div className="space-y-4">
-        {filteredGigs.map((gig) => (
-          <GigCard
-            key={gig.id}
-            gig={gig}
-            onMakeOffer={() => handleMakeOfferClick(gig)}
-          />
-        ))}
+        {loading ? (
+          <div className="flex justify-center items-center py-12">
+            <Loader2 className="w-8 h-8 animate-spin text-blue-500" />
+            <span className="ml-2 text-gray-600">Loading gigs...</span>
+          </div>
+        ) : filteredGigs.length === 0 ? (
+          <div className="text-center py-12">
+            <Search className="w-12 h-12 mx-auto mb-4 text-gray-400" />
+            <h3 className="text-lg font-medium text-gray-900 mb-2">
+              {searchQuery || selectedCategory || selectedPrice || selectedDeadline
+                ? "No gigs found"
+                : "No gigs available"}
+            </h3>
+            <p className="text-gray-600 mb-4">
+              {searchQuery || selectedCategory || selectedPrice || selectedDeadline
+                ? "Try adjusting your search or filters"
+                : "Be the first to post a gig!"}
+            </p>
+            {!searchQuery && !selectedCategory && !selectedPrice && !selectedDeadline && (
+              <Button
+                onClick={() => setShowPostGigDialog(true)}
+                className="bg-blue-500 hover:bg-blue-600"
+              >
+                <Plus className="w-4 h-4 mr-2" />
+                Post Your First Gig
+              </Button>
+            )}
+          </div>
+        ) : (
+          filteredGigs.map((gig) => (
+            <GigCard
+              key={gig.id}
+              gig={gig}
+              onMakeOffer={() => handleMakeOfferClick(gig)}
+            />
+          ))
+        )}
       </div>
 
       {/* Post Gig Dialog */}

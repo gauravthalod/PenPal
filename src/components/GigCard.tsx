@@ -6,7 +6,7 @@ import { Edit, User, Calendar, MessageSquare } from "lucide-react";
 
 interface GigCardProps {
   gig: {
-    id: number;
+    id: string;
     title: string;
     description: string;
     category: string;

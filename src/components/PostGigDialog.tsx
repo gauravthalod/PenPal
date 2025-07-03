@@ -6,14 +6,20 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { Plus, X } from "lucide-react";
+import { useAuth } from "@/contexts/AuthContext";
+import { gigService } from "@/services/database";
+import { useToast } from "@/hooks/use-toast";
 
 interface PostGigDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onSubmit: (gigData: any) => void;
+  onSubmit?: (gigData: any) => void;
 }
 
 const PostGigDialog = ({ open, onOpenChange, onSubmit }: PostGigDialogProps) => {
+  const { userProfile } = useAuth();
+  const { toast } = useToast();
+  const [isLoading, setIsLoading] = useState(false);
   const [formData, setFormData] = useState({
     gigName: "",
     category: "",
@@ -73,26 +79,99 @@ const PostGigDialog = ({ open, onOpenChange, onSubmit }: PostGigDialogProps) => 
     }));
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     // Basic validation
     if (!formData.gigName || !formData.category || !formData.bidPrice || !formData.deadline) {
+      toast({
+        title: "Validation Error",
+        description: "Please fill in all required fields.",
+        variant: "destructive"
+      });
       return;
     }
 
-    onSubmit(formData);
-    
-    // Reset form
-    setFormData({
-      gigName: "",
-      category: "",
-      bidPrice: "",
-      deadline: "",
-      description: ""
-    });
-    
-    onOpenChange(false);
+    // Validate price
+    const price = parseFloat(formData.bidPrice);
+    if (isNaN(price) || price <= 0) {
+      toast({
+        title: "Validation Error",
+        description: "Please enter a valid price greater than 0.",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    // Validate deadline is in the future
+    const deadlineDate = new Date(formData.deadline);
+    const now = new Date();
+    if (deadlineDate <= now) {
+      toast({
+        title: "Validation Error",
+        description: "Deadline must be in the future.",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    if (!userProfile) {
+      toast({
+        title: "Authentication Error",
+        description: "Please log in to post a gig.",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    setIsLoading(true);
+
+    try {
+      // Create gig data for Firebase
+      const gigData = {
+        title: formData.gigName.trim(),
+        description: formData.description?.trim() || "",
+        category: formData.category,
+        budget: price,
+        deadline: deadlineDate,
+        location: "Campus", // Default location
+        college: userProfile.college,
+        postedBy: userProfile.uid,
+        postedByName: `${userProfile.firstName} ${userProfile.lastName}`.trim(),
+        status: 'open' as const
+      };
+
+      // Save to Firebase
+      const createdGig = await gigService.createGig(gigData);
+
+      toast({
+        title: "Gig Posted Successfully!",
+        description: `Your gig "${formData.gigName}" has been posted and is now visible to other students. Refresh the page to see it in the list.`,
+      });
+
+      // Call onSubmit if provided (for any additional handling)
+      onSubmit?.(createdGig);
+
+      // Reset form
+      setFormData({
+        gigName: "",
+        category: "",
+        bidPrice: "",
+        deadline: "",
+        description: ""
+      });
+
+      onOpenChange(false);
+    } catch (error) {
+      console.error("Error posting gig:", error);
+      toast({
+        title: "Error",
+        description: "Failed to post gig. Please try again.",
+        variant: "destructive"
+      });
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const handleCancel = () => {
@@ -219,8 +298,9 @@ const PostGigDialog = ({ open, onOpenChange, onSubmit }: PostGigDialogProps) => 
             <Button
               type="submit"
               className="flex-1 bg-blue-500 hover:bg-blue-600"
+              disabled={isLoading}
             >
-              Post Gig
+              {isLoading ? "Posting..." : "Post Gig"}
             </Button>
           </div>
         </form>

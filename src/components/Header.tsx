@@ -1,7 +1,7 @@
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { User, Bell, LogIn, BarChart3 } from "lucide-react";
+import { User, Bell, LogIn, BarChart3, MessageCircle } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 
 interface HeaderProps {
@@ -32,6 +32,10 @@ const Header = ({ onLoginClick, showLoginButton = false }: HeaderProps) => {
     navigate("/dashboard");
   };
 
+  const handleChatsClick = () => {
+    navigate("/gig-chats");
+  };
+
   return (
     <header className="bg-white border-b sticky top-0 z-50">
       <div className="container mx-auto px-3 sm:px-4 py-3 sm:py-4">
@@ -56,6 +60,14 @@ const Header = ({ onLoginClick, showLoginButton = false }: HeaderProps) => {
               <Badge className="absolute -top-0.5 -right-0.5 sm:-top-1 sm:-right-1 bg-red-500 text-white text-xs px-1 sm:px-1.5 py-0.5 rounded-full min-w-[16px] sm:min-w-[20px] h-4 sm:h-5 flex items-center justify-center">
                 3
               </Badge>
+            </button>
+
+            <button
+              onClick={handleChatsClick}
+              className="hover:bg-gray-100 p-1.5 sm:p-2 rounded-full transition-colors"
+              title="Gig Chats"
+            >
+              <MessageCircle className="w-5 h-5 sm:w-6 sm:h-6 text-gray-600" />
             </button>
 
             <button

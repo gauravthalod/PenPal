@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
@@ -8,33 +8,109 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Star, Lock, Globe, User, LogOut } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { User as FirebaseUser } from "firebase/auth";
+import { UserProfile } from "@/contexts/AuthContext";
 
 interface ProfileFormProps {
   isEditing: boolean;
   onEdit: () => void;
-  onSave: () => void;
+  onSave: (data: any) => void;
   onCancel: () => void;
+  currentUser: FirebaseUser;
+  userProfile: UserProfile | null;
+  onLogout: () => void;
 }
 
-const ProfileForm = ({ isEditing, onEdit, onSave, onCancel }: ProfileFormProps) => {
+const ProfileForm = ({
+  isEditing,
+  onEdit,
+  onSave,
+  onCancel,
+  currentUser,
+  userProfile,
+  onLogout
+}: ProfileFormProps) => {
   const navigate = useNavigate();
   const { toast } = useToast();
+
+  // CMR Group colleges
+  const colleges = [
+    { value: "cmrec", label: "CMREC - CMR Engineering College" },
+    { value: "cmrit", label: "CMRIT - CMR Institute of Technology" },
+    { value: "cmrtc", label: "CMRTC - CMR Technical Campus" },
+    { value: "cmrcet", label: "CMRCET - CMR College of Engineering & Technology" }
+  ];
+
+  const academicYears = [
+    { value: "1", label: "1st Year" },
+    { value: "2", label: "2nd Year" },
+    { value: "3", label: "3rd Year" },
+    { value: "4", label: "4th Year" },
+    { value: "pg1", label: "PG 1st Year" },
+    { value: "pg2", label: "PG 2nd Year" }
+  ];
+
+  const branches = [
+    "Computer Science Engineering",
+    "Information Technology",
+    "Electronics & Communication Engineering",
+    "Electrical & Electronics Engineering",
+    "Mechanical Engineering",
+    "Civil Engineering",
+    "Chemical Engineering",
+    "Biotechnology",
+    "Aerospace Engineering",
+    "Data Science",
+    "Artificial Intelligence & Machine Learning"
+  ];
+
   const [profileData, setProfileData] = useState({
-    username: "karthik",
-    realName: "Karthik Reddy",
-    college: "BITS Pilani",
-    email: "karthik@bits.edu.in",
-    phone: "+91 9876543210",
+    firstName: "",
+    lastName: "",
+    college: "",
+    year: "",
+    branch: "",
+    rollNumber: "",
+    phone: "",
     bio: "",
-    rating: 4.8,
-    reviewCount: 37,
+    rating: 0,
+    reviewCount: 0,
     anonMode: false
   });
 
   const [bioCharCount, setBioCharCount] = useState(0);
   const maxBioLength = 160;
+
+  // Initialize profile data from Firebase user and profile
+  useEffect(() => {
+    if (currentUser && userProfile) {
+      setProfileData({
+        firstName: userProfile.firstName || currentUser.displayName?.split(' ')[0] || "",
+        lastName: userProfile.lastName || currentUser.displayName?.split(' ').slice(1).join(' ') || "",
+        college: userProfile.college || "",
+        year: userProfile.year || "",
+        branch: userProfile.branch || "",
+        rollNumber: userProfile.rollNumber || "",
+        phone: userProfile.phone || currentUser.phoneNumber || "",
+        bio: userProfile.bio || "",
+        rating: 4.8, // Default rating
+        reviewCount: 0, // Default review count
+        anonMode: false
+      });
+      setBioCharCount(userProfile.bio?.length || 0);
+    } else if (currentUser) {
+      // If we have currentUser but no userProfile, use basic info from Firebase Auth
+      setProfileData(prev => ({
+        ...prev,
+        firstName: currentUser.displayName?.split(' ')[0] || "",
+        lastName: currentUser.displayName?.split(' ').slice(1).join(' ') || "",
+        phone: currentUser.phoneNumber || ""
+      }));
+    }
+  }, [currentUser, userProfile]);
 
   const handleInputChange = (field: string, value: string | boolean) => {
     setProfileData(prev => ({
@@ -53,19 +129,63 @@ const ProfileForm = ({ isEditing, onEdit, onSave, onCancel }: ProfileFormProps) 
     }
   };
 
-  const handleLogout = () => {
-    // Clear any stored authentication data (localStorage, sessionStorage, etc.)
-    localStorage.removeItem('authToken');
-    sessionStorage.removeItem('userSession');
+  const handleSave = () => {
+    // Prepare data for saving
+    const updatedData = {
+      firstName: profileData.firstName,
+      lastName: profileData.lastName,
+      college: profileData.college,
+      year: profileData.year,
+      branch: profileData.branch,
+      rollNumber: profileData.rollNumber,
+      phone: profileData.phone,
+      bio: profileData.bio
+    };
 
-    // Show logout confirmation
+    onSave(updatedData);
+
     toast({
-      title: "Logged Out",
-      description: "You have been successfully logged out.",
+      title: "Profile Updated",
+      description: "Your profile has been successfully updated.",
     });
+  };
 
-    // Navigate to login page
-    navigate("/login");
+  const handleLogout = async () => {
+    try {
+      await onLogout();
+      toast({
+        title: "Logged Out",
+        description: "You have been successfully logged out.",
+      });
+      navigate("/login");
+    } catch (error) {
+      console.error("Logout error:", error);
+      toast({
+        title: "Error",
+        description: "Failed to logout. Please try again.",
+        variant: "destructive"
+      });
+    }
+  };
+
+  // Get user's initials for avatar
+  const getUserInitials = () => {
+    if (profileData.firstName && profileData.lastName) {
+      return `${profileData.firstName[0]}${profileData.lastName[0]}`.toUpperCase();
+    }
+    if (currentUser.displayName) {
+      const names = currentUser.displayName.split(' ');
+      return names.length > 1 ? `${names[0][0]}${names[1][0]}`.toUpperCase() : names[0][0].toUpperCase();
+    }
+    return currentUser.email?.[0].toUpperCase() || "U";
+  };
+
+  // Get display name
+  const getDisplayName = () => {
+    if (profileData.firstName && profileData.lastName) {
+      return `${profileData.firstName} ${profileData.lastName}`;
+    }
+    return currentUser.displayName || currentUser.email || "User";
   };
 
   return (
@@ -75,9 +195,9 @@ const ProfileForm = ({ isEditing, onEdit, onSave, onCancel }: ProfileFormProps) 
         <div className="flex items-center gap-4">
           <div className="relative">
             <Avatar className="w-16 h-16">
-              <AvatarImage src="/placeholder-avatar.jpg" />
+              <AvatarImage src={currentUser.photoURL || "/placeholder-avatar.jpg"} />
               <AvatarFallback className="bg-gradient-to-r from-blue-400 to-blue-600 text-white text-xl font-semibold">
-                K
+                {getUserInitials()}
               </AvatarFallback>
             </Avatar>
             <div className="absolute -bottom-1 -right-1 w-6 h-6 bg-blue-500 rounded-full flex items-center justify-center">
@@ -87,7 +207,7 @@ const ProfileForm = ({ isEditing, onEdit, onSave, onCancel }: ProfileFormProps) 
           
           <div className="flex-1">
             <div className="flex items-center gap-2 mb-1">
-              <h2 className="text-xl font-semibold">@{profileData.username}</h2>
+              <h2 className="text-xl font-semibold">{getDisplayName()}</h2>
               <div className="flex items-center gap-1">
                 <Switch
                   checked={profileData.anonMode}
@@ -98,14 +218,19 @@ const ProfileForm = ({ isEditing, onEdit, onSave, onCancel }: ProfileFormProps) 
               </div>
             </div>
             <div className="flex items-center gap-2">
-              <Badge variant="secondary" className="bg-blue-100 text-blue-700">
-                {profileData.college}
-              </Badge>
+              {profileData.college && (
+                <Badge variant="secondary" className="bg-blue-100 text-blue-700">
+                  {colleges.find(c => c.value === profileData.college)?.label || profileData.college}
+                </Badge>
+              )}
               <div className="flex items-center gap-1">
                 <Star className="w-4 h-4 fill-yellow-400 text-yellow-400" />
                 <span className="font-medium">{profileData.rating}</span>
-                <span className="text-gray-500">({profileData.reviewCount})</span>
+                <span className="text-gray-500">({profileData.reviewCount} reviews)</span>
               </div>
+            </div>
+            <div className="mt-1 text-sm text-gray-600">
+              {currentUser.email}
             </div>
           </div>
         </div>
@@ -151,40 +276,124 @@ const ProfileForm = ({ isEditing, onEdit, onSave, onCancel }: ProfileFormProps) 
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
-              <div>
-                <Label htmlFor="realName">Real Name</Label>
-                <Input
-                  id="realName"
-                  value={profileData.realName}
-                  onChange={(e) => handleInputChange("realName", e.target.value)}
-                  disabled={!isEditing}
-                  className="mt-1"
-                />
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label htmlFor="firstName">First Name</Label>
+                  <Input
+                    id="firstName"
+                    value={profileData.firstName}
+                    onChange={(e) => handleInputChange("firstName", e.target.value)}
+                    disabled={!isEditing}
+                    className="mt-1"
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="lastName">Last Name</Label>
+                  <Input
+                    id="lastName"
+                    value={profileData.lastName}
+                    onChange={(e) => handleInputChange("lastName", e.target.value)}
+                    disabled={!isEditing}
+                    className="mt-1"
+                  />
+                </div>
               </div>
-              
+
               <div>
                 <Label htmlFor="college">College</Label>
-                <Input
-                  id="college"
-                  value={profileData.college}
-                  onChange={(e) => handleInputChange("college", e.target.value)}
-                  disabled={!isEditing}
-                  className="mt-1"
-                />
+                {isEditing ? (
+                  <Select value={profileData.college} onValueChange={(value) => handleInputChange("college", value)}>
+                    <SelectTrigger className="mt-1">
+                      <SelectValue placeholder="Select your college" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {colleges.map((college) => (
+                        <SelectItem key={college.value} value={college.value}>
+                          {college.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                ) : (
+                  <Input
+                    value={colleges.find(c => c.value === profileData.college)?.label || profileData.college}
+                    disabled
+                    className="mt-1"
+                  />
+                )}
               </div>
-              
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label htmlFor="year">Academic Year</Label>
+                  {isEditing ? (
+                    <Select value={profileData.year} onValueChange={(value) => handleInputChange("year", value)}>
+                      <SelectTrigger className="mt-1">
+                        <SelectValue placeholder="Select year" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {academicYears.map((year) => (
+                          <SelectItem key={year.value} value={year.value}>
+                            {year.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  ) : (
+                    <Input
+                      value={academicYears.find(y => y.value === profileData.year)?.label || profileData.year}
+                      disabled
+                      className="mt-1"
+                    />
+                  )}
+                </div>
+                <div>
+                  <Label htmlFor="rollNumber">Roll Number</Label>
+                  <Input
+                    id="rollNumber"
+                    value={profileData.rollNumber}
+                    onChange={(e) => handleInputChange("rollNumber", e.target.value.toUpperCase())}
+                    disabled={!isEditing}
+                    className="mt-1"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <Label htmlFor="branch">Branch/Department</Label>
+                {isEditing ? (
+                  <Select value={profileData.branch} onValueChange={(value) => handleInputChange("branch", value)}>
+                    <SelectTrigger className="mt-1">
+                      <SelectValue placeholder="Select your branch" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {branches.map((branch) => (
+                        <SelectItem key={branch} value={branch}>
+                          {branch}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                ) : (
+                  <Input
+                    value={profileData.branch}
+                    disabled
+                    className="mt-1"
+                  />
+                )}
+              </div>
+
               <div>
                 <Label htmlFor="email">Email</Label>
                 <Input
                   id="email"
                   type="email"
-                  value={profileData.email}
-                  onChange={(e) => handleInputChange("email", e.target.value)}
-                  disabled={!isEditing}
+                  value={currentUser.email || ""}
+                  disabled
                   className="mt-1"
                 />
               </div>
-              
+
               <div>
                 <Label htmlFor="phone">Phone</Label>
                 <Input
@@ -258,7 +467,7 @@ const ProfileForm = ({ isEditing, onEdit, onSave, onCancel }: ProfileFormProps) 
                 <Button variant="outline" onClick={onCancel}>
                   Cancel
                 </Button>
-                <Button onClick={onSave} className="bg-blue-500 hover:bg-blue-600">
+                <Button onClick={handleSave} className="bg-blue-500 hover:bg-blue-600">
                   Save Changes
                 </Button>
               </>

@@ -1,111 +1,145 @@
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useToast } from "@/hooks/use-toast";
 import Header from "@/components/Header";
 import NavigationTabs from "@/components/NavigationTabs";
 import GigFeed from "@/components/GigFeed";
 import Buzz from "./Buzz";
 import { Plus, MessageCircle } from "lucide-react";
+import { useAuth } from "@/contexts/AuthContext";
+import { gigService, Gig } from "@/services/database";
+
 
 const Index = () => {
   const [activeTab, setActiveTab] = useState("trade");
+  const [gigs, setGigs] = useState<Gig[]>([]);
+  const [loading, setLoading] = useState(true);
   const { toast } = useToast();
+  const { userProfile } = useAuth();
 
-  // Generate mock data with actual dates
-  const generateMockGigs = () => {
+  // Generate mock data for testing when user is not authenticated
+  const generateMockGigs = (): Gig[] => {
     const today = new Date();
-
     const getDateString = (daysFromNow: number) => {
       const date = new Date(today);
       date.setDate(today.getDate() + daysFromNow);
-      return date.toLocaleDateString('en-US', {
-        month: 'short',
-        day: 'numeric',
-        year: 'numeric'
-      });
+      return date;
     };
 
     return [
       {
-        id: 1,
+        id: "mock-1",
         title: "Math assignment help",
         description: "Need help with calculus assignment. Will provide all materials.",
         category: "Academic",
-        price: 200,
+        budget: 200,
         deadline: getDateString(2),
-        poster: "anon_47",
-        university: "CMREC",
-        timePosted: "2h ago"
+        location: "Campus",
+        college: "CMREC",
+        postedBy: "mock-user-1",
+        postedByName: "John Doe",
+        status: 'open',
+        createdAt: new Date(Date.now() - 2 * 60 * 60 * 1000), // 2 hours ago
+        updatedAt: new Date(Date.now() - 2 * 60 * 60 * 1000)
       },
       {
-        id: 2,
+        id: "mock-2",
         title: "Graphic design for club event",
         description: "Looking for someone to design poster for our college fest",
         category: "Creative",
-        price: 500,
+        budget: 500,
         deadline: getDateString(5),
-        poster: "anon_99",
-        university: "CMRIT",
-        timePosted: "4h ago"
-      },
-      {
-        id: 3,
-        title: "Resume Review",
-        description: "Need professional review of my resume for internship applications",
-        category: "Academic",
-        price: 100,
-        deadline: getDateString(1),
-        poster: "anon_12",
-        university: "CMRTC",
-        timePosted: "1h ago"
-      },
-      {
-        id: 4,
-        title: "Pet sitting service",
-        description: "Need someone to take care of my dog for the weekend",
-        category: "Others",
-        price: 300,
-        deadline: getDateString(3),
-        poster: "anon_88",
-        university: "CMRCET",
-        timePosted: "6h ago"
-      },
-      {
-        id: 5,
-        title: "Website development",
-        description: "Looking for a developer to create a simple portfolio website",
-        category: "Tech",
-        price: 800,
-        deadline: getDateString(14),
-        poster: "anon_55",
-        university: "CMREC",
-        timePosted: "1d ago"
+        location: "Campus",
+        college: "CMRIT",
+        postedBy: "mock-user-2",
+        postedByName: "Jane Smith",
+        status: 'open',
+        createdAt: new Date(Date.now() - 4 * 60 * 60 * 1000), // 4 hours ago
+        updatedAt: new Date(Date.now() - 4 * 60 * 60 * 1000)
       }
     ];
   };
 
-  const mockGigs = generateMockGigs();
+  // Fetch gigs from Firebase
+  const fetchGigs = async () => {
+    console.log("fetchGigs called, userProfile:", userProfile);
 
-  const handleMakeOffer = (offerData: { gigId: number; offerPrice: number; message: string }) => {
+    if (!userProfile?.college) {
+      console.log("No user profile or college found, using mock data");
+      setGigs(generateMockGigs());
+      setLoading(false);
+      return;
+    }
+
+    try {
+      setLoading(true);
+      console.log("Fetching gigs for college:", userProfile.college);
+
+      let fetchedGigs;
+      try {
+        // Try to get gigs by college first
+        fetchedGigs = await gigService.getGigsByCollege(userProfile.college);
+      } catch (collegeError) {
+        console.warn("College-specific fetch failed, trying to get all gigs:", collegeError);
+        // Fallback: get all gigs and filter client-side
+        const allGigs = await gigService.getAllGigs();
+        fetchedGigs = allGigs.filter(gig => gig.college === userProfile.college);
+      }
+
+      console.log("Fetched gigs:", fetchedGigs);
+      setGigs(fetchedGigs);
+
+      // Show success message if we got gigs
+      if (fetchedGigs.length > 0) {
+        console.log(`Successfully loaded ${fetchedGigs.length} gigs`);
+      }
+    } catch (error) {
+      console.error("Error fetching gigs:", error);
+
+      // Check if it's a permission error
+      if (error.code === 'permission-denied') {
+        toast({
+          title: "Permission Error",
+          description: "Please log in to view gigs for your college.",
+          variant: "destructive"
+        });
+        setGigs([]);
+      } else {
+        // For other errors, show the gigs that are already stored
+        console.log("Error occurred, keeping existing gigs or showing empty state");
+        toast({
+          title: "Connection Issue",
+          description: "Having trouble loading latest gigs. Please try again.",
+          variant: "destructive"
+        });
+      }
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Fetch gigs when component mounts or user profile changes
+  useEffect(() => {
+    fetchGigs(); // Always fetch, will use mock data if not authenticated
+  }, [userProfile?.college]);
+
+  const handleMakeOffer = (offerData: { gigId: string; offerPrice: number; message: string }) => {
+    // The offer submission is now handled in MakeOfferDialog component
+    // This callback is just for any additional handling if needed
     console.log("Offer submitted:", offerData);
-    toast({
-      title: "Offer Submitted",
-      description: `Your offer of ₹${offerData.offerPrice} has been sent to the gig poster.`,
-    });
   };
 
   const handlePostGig = (gigData: any) => {
-    console.log("New gig posted:", gigData);
-    toast({
-      title: "Gig Posted Successfully!",
-      description: `Your gig "${gigData.gigName}" has been posted.`,
-    });
+    // Refresh gigs list after posting
+    fetchGigs();
   };
 
   const handleLogin = () => {
     // This will be handled by the Header component now
     console.log("Login clicked");
   };
+
+
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -117,9 +151,11 @@ const Index = () => {
         {activeTab === "trade" && (
           <div className="mt-4 sm:mt-6">
             <GigFeed
-              gigs={mockGigs}
+              gigs={gigs}
+              loading={loading}
               onMakeOffer={handleMakeOffer}
               onPostGig={handlePostGig}
+              onRefresh={fetchGigs}
             />
           </div>
         )}

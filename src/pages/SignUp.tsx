@@ -6,435 +6,546 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Phone, MessageSquare, GraduationCap, User, ArrowLeft, RotateCcw } from "lucide-react";
+import { GraduationCap, User, Phone, MessageSquare } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import { useOTPAuth } from "@/hooks/useOTPAuth";
-import OtpInput from 'react-otp-input';
+import { useAuth } from "@/contexts/AuthContext";
+import { ConfirmationResult } from "firebase/auth";
 
 const SignUp = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
-  
-  const {
-    phoneNumber,
-    setPhoneNumber,
-    isValidPhone,
-    phoneError,
-    otp,
-    setOtp,
-    timeRemaining,
-    canResend,
-    isSendingOTP,
-    isVerifyingOTP,
-    sendOTP,
-    verifyOTP,
-    resendOTP,
-    resetFlow,
-    step,
-  } = useOTPAuth();
+  const { signInWithGoogle, sendOTP, verifyOTP, createUserProfile } = useAuth();
 
-  const [profileData, setProfileData] = useState({
+  const [step, setStep] = useState<"details" | "otp">("details");
+  const [formData, setFormData] = useState({
     firstName: "",
     lastName: "",
     college: "",
     year: "",
     branch: "",
+    phone: "",
+    rollNumber: "",
+    otp: ""
   });
 
-  const [showProfileForm, setShowProfileForm] = useState(false);
-  const [isCreatingProfile, setIsCreatingProfile] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState("");
+  const [confirmationResult, setConfirmationResult] = useState<ConfirmationResult | null>(null);
 
+  // CMR Group colleges
   const colleges = [
-    "CMR Engineering College",
-    "CMR Institute of Technology", 
-    "CMR Technical Campus",
-    "CMR College of Engineering & Technology",
-    "CMR Group of Institutions"
+    { value: "cmrec", label: "CMREC - CMR Engineering College", domain: "cmrec.ac.in" },
+    { value: "cmrit", label: "CMRIT - CMR Institute of Technology", domain: "cmrit.ac.in" },
+    { value: "cmrtc", label: "CMRTC - CMR Technical Campus", domain: "cmrtc.ac.in" },
+    { value: "cmrcet", label: "CMRCET - CMR College of Engineering & Technology", domain: "cmrcet.ac.in" }
   ];
 
-  const years = ["1st Year", "2nd Year", "3rd Year", "4th Year", "5th Year"];
-  
+  const academicYears = [
+    { value: "1", label: "1st Year" },
+    { value: "2", label: "2nd Year" },
+    { value: "3", label: "3rd Year" },
+    { value: "4", label: "4th Year" },
+    { value: "pg1", label: "PG 1st Year" },
+    { value: "pg2", label: "PG 2nd Year" }
+  ];
+
   const branches = [
     "Computer Science Engineering",
-    "Information Technology",
-    "Electronics and Communication",
-    "Electrical and Electronics",
+    "Information Technology", 
+    "Electronics & Communication Engineering",
+    "Electrical & Electronics Engineering",
     "Mechanical Engineering",
     "Civil Engineering",
     "Chemical Engineering",
     "Biotechnology",
     "Aerospace Engineering",
-    "Other"
+    "Data Science",
+    "Artificial Intelligence & Machine Learning"
   ];
 
-  const handlePhoneSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    await sendOTP();
+  const handleInputChange = (field: string, value: string) => {
+    setFormData(prev => ({
+      ...prev,
+      [field]: value
+    }));
+    // Clear error when user starts typing
+    if (error) setError("");
   };
 
-  const handleOTPSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    // For signup, we need to show profile form after OTP verification
-    const result = await verifyOTP();
-    if (result) {
-      setShowProfileForm(true);
+  const validatePhoneNumber = (phone: string) => {
+    // Remove all non-digit characters
+    const cleanPhone = phone.replace(/\D/g, '');
+
+    // Check if it's a valid Indian mobile number (10 digits starting with 6-9)
+    const phoneRegex = /^[6-9]\d{9}$/;
+    return phoneRegex.test(cleanPhone);
+  };
+
+  const formatPhoneNumber = (phone: string) => {
+    // Remove all non-digit characters
+    const cleanPhone = phone.replace(/\D/g, '');
+
+    // Format as +91 XXXXX XXXXX
+    if (cleanPhone.length <= 10) {
+      return cleanPhone.replace(/(\d{5})(\d{5})/, '$1 $2');
     }
+    return cleanPhone;
   };
 
-  const handleProfileSubmit = async (e: React.FormEvent) => {
+  const validateForm = () => {
+    // Basic validation
+    if (!formData.firstName || !formData.lastName) {
+      setError("Please enter your full name");
+      return false;
+    }
+
+    if (!formData.phone) {
+      setError("Please enter your phone number");
+      return false;
+    }
+
+    if (!validatePhoneNumber(formData.phone)) {
+      setError("Please enter a valid 10-digit mobile number");
+      return false;
+    }
+
+    if (!formData.college) {
+      setError("Please select your college");
+      return false;
+    }
+
+    if (!formData.year || !formData.branch) {
+      setError("Please select your academic year and branch");
+      return false;
+    }
+
+    if (!formData.rollNumber) {
+      setError("Please enter your roll number");
+      return false;
+    }
+
+    return true;
+  };
+
+  const handleSendOTP = async (e: React.FormEvent) => {
     e.preventDefault();
-    
-    // Validate profile data
-    if (!profileData.firstName || !profileData.lastName || !profileData.college || !profileData.year || !profileData.branch) {
-      toast({
-        title: "Incomplete Profile",
-        description: "Please fill in all required fields",
-        variant: "destructive",
-      });
+    setError("");
+    setIsLoading(true);
+
+    if (!validateForm()) {
+      setIsLoading(false);
       return;
     }
 
-    setIsCreatingProfile(true);
+    try {
+      // Use Firebase phone authentication
+      const confirmation = await sendOTP(formData.phone);
+      setConfirmationResult(confirmation);
+      setStep("otp");
+      toast({
+        title: "OTP Sent",
+        description: `Verification code sent to +91 ${formatPhoneNumber(formData.phone)}`,
+      });
+    } catch (err: any) {
+      console.error("OTP send error:", err);
+      setError(err.message || "Failed to send OTP. Please try again.");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleVerifyAndRegister = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError("");
+    setIsLoading(true);
+
+    // Validation
+    if (!formData.otp) {
+      setError("Please enter the OTP");
+      setIsLoading(false);
+      return;
+    }
+
+    if (formData.otp.length !== 6) {
+      setError("OTP must be 6 digits");
+      setIsLoading(false);
+      return;
+    }
+
+    if (!confirmationResult) {
+      setError("Please request a new OTP");
+      setIsLoading(false);
+      return;
+    }
 
     try {
-      // Simulate profile creation
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      // Verify OTP with Firebase
+      await verifyOTP(confirmationResult, formData.otp);
 
-      // Create complete user profile
-      const userData = {
-        phoneNumber,
-        firstName: profileData.firstName,
-        lastName: profileData.lastName,
-        fullName: `${profileData.firstName} ${profileData.lastName}`,
-        college: profileData.college,
-        year: profileData.year,
-        branch: profileData.branch,
-        loginMethod: 'phone',
-        createdAt: new Date().toISOString(),
-        isNewUser: true,
-      };
-
-      // Save to localStorage (simulate backend)
-      localStorage.setItem('campuscrew_user', JSON.stringify(userData));
-      localStorage.setItem('campuscrew_auth_token', `phone_signup_${Date.now()}`);
-      localStorage.setItem('campuscrew_auth_method', 'phone');
-
-      toast({
-        title: "Account Created Successfully!",
-        description: "Welcome to CampusCrew! Your account has been created.",
+      // Create user profile with form data
+      await createUserProfile({
+        firstName: formData.firstName,
+        lastName: formData.lastName,
+        college: formData.college,
+        year: formData.year,
+        branch: formData.branch,
+        phone: formData.phone,
+        rollNumber: formData.rollNumber,
+        authMethod: 'phone'
       });
 
-      navigate('/');
-    } catch (error) {
-      console.error('Error creating profile:', error);
       toast({
-        title: "Profile Creation Failed",
-        description: "Failed to create your profile. Please try again.",
-        variant: "destructive",
+        title: "Registration Successful!",
+        description: "Welcome to CampusCrew! You can now access your dashboard.",
       });
+
+      // Navigate to dashboard
+      navigate("/");
+    } catch (err: any) {
+      console.error("Registration error:", err);
+      setError(err.message || "Registration failed. Please try again.");
     } finally {
-      setIsCreatingProfile(false);
+      setIsLoading(false);
     }
+  };
+
+  const handleGoogleSignUp = async () => {
+    setError("");
+    setIsLoading(true);
+
+    try {
+      await signInWithGoogle();
+      toast({
+        title: "Sign Up Successful!",
+        description: "Welcome to CampusCrew! Please complete your profile.",
+      });
+      navigate("/profile"); // Redirect to profile completion
+    } catch (err: any) {
+      console.error("Google sign up error:", err);
+      setError(err.message || "Failed to sign up with Google. Please try again.");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleResendOTP = async () => {
+    setError("");
+    setIsLoading(true);
+
+    try {
+      const confirmation = await sendOTP(formData.phone);
+      setConfirmationResult(confirmation);
+      toast({
+        title: "OTP Resent",
+        description: `New verification code sent to +91 ${formatPhoneNumber(formData.phone)}`,
+      });
+    } catch (err: any) {
+      console.error("Resend OTP error:", err);
+      setError(err.message || "Failed to resend OTP. Please try again.");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleBackToDetails = () => {
+    setStep("details");
+    setOtpSent(false);
+    setFormData(prev => ({ ...prev, otp: "" }));
+    setError("");
   };
 
   const handleLoginRedirect = () => {
     navigate("/login");
   };
 
-  const formatTimeRemaining = (seconds: number): string => {
-    const minutes = Math.floor(seconds / 60);
-    const remainingSeconds = seconds % 60;
-    return `${minutes}:${remainingSeconds.toString().padStart(2, '0')}`;
-  };
-
-  const renderPhoneStep = () => (
-    <form onSubmit={handlePhoneSubmit} className="space-y-4">
-      {/* Phone Number Input */}
-      <div className="space-y-2">
-        <Label htmlFor="phone">Phone Number</Label>
-        <div className="relative">
-          <Phone className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
-          <Input
-            id="phone"
-            type="tel"
-            placeholder="+91 98765 43210"
-            value={phoneNumber}
-            onChange={(e) => setPhoneNumber(e.target.value)}
-            className="pl-10"
-            required
-          />
-        </div>
-        {phoneError && (
-          <p className="text-sm text-red-600">{phoneError}</p>
-        )}
-      </div>
-
-      {/* Demo Credentials */}
-      <div className="bg-blue-50 p-3 rounded-lg">
-        <p className="text-sm text-blue-700 font-medium mb-1">Demo Credentials:</p>
-        <p className="text-xs text-blue-600">Phone: +919876543210</p>
-        <p className="text-xs text-blue-600">OTP: 123456</p>
-      </div>
-
-      {/* Send OTP Button */}
-      <Button
-        type="submit"
-        className="w-full bg-blue-500 hover:bg-blue-600"
-        disabled={!isValidPhone || isSendingOTP}
-      >
-        {isSendingOTP ? "Sending OTP..." : "Send OTP"}
-      </Button>
-    </form>
-  );
-
-  const renderOTPStep = () => (
-    <div className="space-y-4">
-      {/* Back Button */}
-      <Button
-        variant="ghost"
-        onClick={resetFlow}
-        className="mb-4 p-0 h-auto text-blue-600 hover:text-blue-800"
-      >
-        <ArrowLeft className="w-4 h-4 mr-2" />
-        Change Phone Number
-      </Button>
-
-      {/* Phone Number Display */}
-      <div className="text-center mb-4">
-        <p className="text-sm text-gray-600">
-          Enter the 6-digit code sent to
-        </p>
-        <p className="font-medium text-gray-900">{phoneNumber}</p>
-      </div>
-
-      <form onSubmit={handleOTPSubmit} className="space-y-4">
-        {/* OTP Input */}
-        <div className="space-y-2">
-          <Label className="block text-center">Verification Code</Label>
-          <div className="flex justify-center">
-            <OtpInput
-              value={otp}
-              onChange={setOtp}
-              numInputs={6}
-              separator={<span className="mx-1"></span>}
-              inputStyle={{
-                width: '40px',
-                height: '40px',
-                margin: '0 4px',
-                fontSize: '16px',
-                borderRadius: '8px',
-                border: '1px solid #d1d5db',
-                textAlign: 'center',
-                outline: 'none',
-              }}
-              focusStyle={{
-                border: '2px solid #3b82f6',
-              }}
-            />
-          </div>
-        </div>
-
-        {/* Timer and Resend */}
-        <div className="text-center">
-          {timeRemaining > 0 ? (
-            <p className="text-sm text-gray-600">
-              Resend OTP in {formatTimeRemaining(timeRemaining)}
-            </p>
-          ) : (
-            <Button
-              type="button"
-              variant="ghost"
-              onClick={resendOTP}
-              disabled={isSendingOTP}
-              className="text-blue-600 hover:text-blue-800"
-            >
-              <RotateCcw className="w-4 h-4 mr-2" />
-              {isSendingOTP ? "Sending..." : "Resend OTP"}
-            </Button>
-          )}
-        </div>
-
-        {/* Verify Button */}
-        <Button
-          type="submit"
-          className="w-full bg-blue-500 hover:bg-blue-600"
-          disabled={otp.length !== 6 || isVerifyingOTP}
-        >
-          {isVerifyingOTP ? "Verifying..." : "Verify Phone"}
-        </Button>
-      </form>
-    </div>
-  );
-
-  const renderProfileStep = () => (
-    <form onSubmit={handleProfileSubmit} className="space-y-4">
-      <div className="text-center mb-4">
-        <h3 className="text-lg font-medium text-gray-900">Complete Your Profile</h3>
-        <p className="text-sm text-gray-600">Tell us a bit about yourself</p>
-      </div>
-
-      {/* Name Fields */}
-      <div className="grid grid-cols-2 gap-4">
-        <div className="space-y-2">
-          <Label htmlFor="firstName">First Name</Label>
-          <Input
-            id="firstName"
-            value={profileData.firstName}
-            onChange={(e) => setProfileData(prev => ({ ...prev, firstName: e.target.value }))}
-            placeholder="John"
-            required
-          />
-        </div>
-        <div className="space-y-2">
-          <Label htmlFor="lastName">Last Name</Label>
-          <Input
-            id="lastName"
-            value={profileData.lastName}
-            onChange={(e) => setProfileData(prev => ({ ...prev, lastName: e.target.value }))}
-            placeholder="Doe"
-            required
-          />
-        </div>
-      </div>
-
-      {/* College */}
-      <div className="space-y-2">
-        <Label htmlFor="college">College</Label>
-        <Select value={profileData.college} onValueChange={(value) => setProfileData(prev => ({ ...prev, college: value }))}>
-          <SelectTrigger>
-            <SelectValue placeholder="Select your college" />
-          </SelectTrigger>
-          <SelectContent>
-            {colleges.map((college) => (
-              <SelectItem key={college} value={college}>
-                {college}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-      </div>
-
-      {/* Year and Branch */}
-      <div className="grid grid-cols-2 gap-4">
-        <div className="space-y-2">
-          <Label htmlFor="year">Year</Label>
-          <Select value={profileData.year} onValueChange={(value) => setProfileData(prev => ({ ...prev, year: value }))}>
-            <SelectTrigger>
-              <SelectValue placeholder="Select year" />
-            </SelectTrigger>
-            <SelectContent>
-              {years.map((year) => (
-                <SelectItem key={year} value={year}>
-                  {year}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-        <div className="space-y-2">
-          <Label htmlFor="branch">Branch</Label>
-          <Select value={profileData.branch} onValueChange={(value) => setProfileData(prev => ({ ...prev, branch: value }))}>
-            <SelectTrigger>
-              <SelectValue placeholder="Select branch" />
-            </SelectTrigger>
-            <SelectContent>
-              {branches.map((branch) => (
-                <SelectItem key={branch} value={branch}>
-                  {branch}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-      </div>
-
-      {/* Create Account Button */}
-      <Button
-        type="submit"
-        className="w-full bg-blue-500 hover:bg-blue-600"
-        disabled={isCreatingProfile}
-      >
-        {isCreatingProfile ? "Creating Account..." : "Create Account"}
-      </Button>
-    </form>
-  );
-
-  const getCurrentStep = () => {
-    if (showProfileForm) return 'profile';
-    return step;
-  };
-
-  const getStepTitle = () => {
-    switch (getCurrentStep()) {
-      case 'phone': return 'Sign Up';
-      case 'otp': return 'Verify Phone';
-      case 'profile': return 'Complete Profile';
-      default: return 'Sign Up';
-    }
-  };
-
-  const getStepIcon = () => {
-    switch (getCurrentStep()) {
-      case 'phone': return <Phone className="w-5 h-5" />;
-      case 'otp': return <MessageSquare className="w-5 h-5" />;
-      case 'profile': return <User className="w-5 h-5" />;
-      default: return <Phone className="w-5 h-5" />;
-    }
-  };
-
-  const renderCurrentStep = () => {
-    switch (getCurrentStep()) {
-      case 'phone': return renderPhoneStep();
-      case 'otp': return renderOTPStep();
-      case 'profile': return renderProfileStep();
-      default: return renderPhoneStep();
-    }
-  };
-
   return (
-    <div className="min-h-screen bg-gray-50 flex items-center justify-center px-3 sm:px-4 py-8">
-      <div className="w-full max-w-md">
+    <div className="min-h-screen bg-gray-50 flex items-center justify-center px-4 py-8">
+      <div className="w-full max-w-2xl">
         {/* Header */}
-        <div className="text-center mb-6 sm:mb-8">
-          <div className="flex items-center justify-center gap-2 sm:gap-3 mb-3 sm:mb-4">
-            <div className="w-10 h-10 sm:w-12 sm:h-12 bg-blue-500 rounded-lg flex items-center justify-center">
-              <GraduationCap className="w-5 h-5 sm:w-7 sm:h-7 text-white" />
+        <div className="text-center mb-8">
+          <div className="flex items-center justify-center gap-3 mb-4">
+            <div className="w-12 h-12 bg-blue-500 rounded-lg flex items-center justify-center">
+              <GraduationCap className="w-7 h-7 text-white" />
             </div>
-            <h1 className="text-2xl sm:text-3xl font-bold text-blue-600">CampusCrew</h1>
+            <h1 className="text-3xl font-bold text-blue-600">CampusCrew</h1>
           </div>
-          <p className="text-sm sm:text-base text-gray-600">
-            {getCurrentStep() === 'phone' && 'Create your student account'}
-            {getCurrentStep() === 'otp' && 'Verify your phone number'}
-            {getCurrentStep() === 'profile' && 'Complete your profile'}
+          <p className="text-gray-600">
+            {step === "details" ? "Join the CMR Group community" : "Verify your phone number"}
           </p>
         </div>
 
-        {/* SignUp Form */}
+        {/* Sign Up Form */}
         <Card>
           <CardHeader>
-            <CardTitle className="text-center text-xl flex items-center justify-center gap-2">
-              {getStepIcon()}
-              {getStepTitle()}
+            <CardTitle className="text-center text-xl">
+              {step === "details" ? "Create Your Account" : "Verify Phone Number"}
             </CardTitle>
           </CardHeader>
           <CardContent>
-            {renderCurrentStep()}
+            {step === "details" ? (
+              <form onSubmit={handleSendOTP} className="space-y-4">
+                {/* Error Alert */}
+                {error && (
+                  <Alert variant="destructive">
+                    <AlertDescription>{error}</AlertDescription>
+                  </Alert>
+                )}
 
-            {/* Login Link - only show on phone step */}
-            {getCurrentStep() === 'phone' && (
-              <div className="text-center pt-4 border-t mt-6">
-                <p className="text-sm text-gray-600">
-                  Already have an account?{" "}
-                  <button
-                    type="button"
-                    onClick={handleLoginRedirect}
-                    className="text-blue-600 hover:text-blue-800 font-medium underline"
-                  >
-                    Sign in
-                  </button>
+              {/* Name Fields */}
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="firstName">First Name *</Label>
+                  <div className="relative">
+                    <User className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+                    <Input
+                      id="firstName"
+                      placeholder="First name"
+                      value={formData.firstName}
+                      onChange={(e) => handleInputChange("firstName", e.target.value)}
+                      className="pl-10"
+                      required
+                    />
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="lastName">Last Name *</Label>
+                  <Input
+                    id="lastName"
+                    placeholder="Last name"
+                    value={formData.lastName}
+                    onChange={(e) => handleInputChange("lastName", e.target.value)}
+                    required
+                  />
+                </div>
+              </div>
+
+              {/* College Selection */}
+              <div className="space-y-2">
+                <Label htmlFor="college">College *</Label>
+                <Select value={formData.college} onValueChange={(value) => handleInputChange("college", value)}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select your college" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {colleges.map((college) => (
+                      <SelectItem key={college.value} value={college.value}>
+                        {college.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {/* Phone Number */}
+              <div className="space-y-2">
+                <Label htmlFor="phone">Phone Number *</Label>
+                <div className="relative">
+                  <Phone className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+                  <div className="absolute left-10 top-1/2 transform -translate-y-1/2 text-gray-500 text-sm">
+                    +91
+                  </div>
+                  <Input
+                    id="phone"
+                    type="tel"
+                    placeholder="9876543210"
+                    value={formData.phone}
+                    onChange={(e) => {
+                      const value = e.target.value.replace(/\D/g, '').slice(0, 10);
+                      handleInputChange("phone", value);
+                    }}
+                    className="pl-16"
+                    required
+                  />
+                </div>
+                <p className="text-xs text-gray-500">
+                  Enter your 10-digit mobile number
                 </p>
               </div>
-            )}
+
+              {/* Academic Details */}
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="year">Academic Year *</Label>
+                  <Select value={formData.year} onValueChange={(value) => handleInputChange("year", value)}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select year" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {academicYears.map((year) => (
+                        <SelectItem key={year.value} value={year.value}>
+                          {year.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="rollNumber">Roll Number *</Label>
+                  <Input
+                    id="rollNumber"
+                    placeholder="e.g., 21R01A0501"
+                    value={formData.rollNumber}
+                    onChange={(e) => handleInputChange("rollNumber", e.target.value.toUpperCase())}
+                    required
+                  />
+                </div>
+              </div>
+
+              {/* Branch */}
+              <div className="space-y-2">
+                <Label htmlFor="branch">Branch/Department *</Label>
+                <Select value={formData.branch} onValueChange={(value) => handleInputChange("branch", value)}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select your branch" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {branches.map((branch) => (
+                      <SelectItem key={branch} value={branch}>
+                        {branch}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {/* Send OTP Button */}
+              <Button
+                type="submit"
+                className="w-full bg-blue-500 hover:bg-blue-600"
+                disabled={isLoading}
+              >
+                {isLoading ? "Sending OTP..." : "Send OTP & Continue"}
+              </Button>
+
+              {/* Divider */}
+              <div className="relative">
+                <div className="absolute inset-0 flex items-center">
+                  <span className="w-full border-t" />
+                </div>
+                <div className="relative flex justify-center text-xs uppercase">
+                  <span className="bg-white px-2 text-muted-foreground">Or continue with</span>
+                </div>
+              </div>
+
+              {/* Google Sign Up Button */}
+              <Button
+                type="button"
+                variant="outline"
+                className="w-full"
+                onClick={handleGoogleSignUp}
+                disabled={isLoading}
+              >
+                <svg className="mr-2 h-4 w-4" viewBox="0 0 24 24">
+                  <path
+                    d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
+                    fill="#4285F4"
+                  />
+                  <path
+                    d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"
+                    fill="#34A853"
+                  />
+                  <path
+                    d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"
+                    fill="#FBBC05"
+                  />
+                  <path
+                    d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"
+                    fill="#EA4335"
+                  />
+                </svg>
+                {isLoading ? "Signing up..." : "Sign up with Google"}
+              </Button>
+            </form>
+          ) : (
+            <form onSubmit={handleVerifyAndRegister} className="space-y-4">
+              {/* Error Alert */}
+              {error && (
+                <Alert variant="destructive">
+                  <AlertDescription>{error}</AlertDescription>
+                </Alert>
+              )}
+
+              {/* Phone Number Display */}
+              <div className="text-center p-3 bg-gray-50 rounded-lg">
+                <p className="text-sm text-gray-600">
+                  OTP sent to +91 {formatPhoneNumber(formData.phone)}
+                </p>
+              </div>
+
+              {/* OTP Input */}
+              <div className="space-y-2">
+                <Label htmlFor="otp">Enter OTP *</Label>
+                <div className="relative">
+                  <MessageSquare className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+                  <Input
+                    id="otp"
+                    type="text"
+                    placeholder="123456"
+                    value={formData.otp}
+                    onChange={(e) => {
+                      const value = e.target.value.replace(/\D/g, '').slice(0, 6);
+                      handleInputChange("otp", value);
+                    }}
+                    className="pl-10 text-center text-lg tracking-widest"
+                    maxLength={6}
+                    required
+                  />
+                </div>
+                <p className="text-xs text-gray-500">
+                  Enter the 6-digit code sent to your phone
+                </p>
+              </div>
+
+              {/* Demo OTP */}
+              <div className="bg-blue-50 p-3 rounded-lg">
+                <p className="text-sm text-blue-700 font-medium mb-1">Demo OTP:</p>
+                <p className="text-xs text-blue-600">Use: 123456</p>
+              </div>
+
+              {/* Verify and Register Button */}
+              <Button
+                type="submit"
+                className="w-full bg-blue-500 hover:bg-blue-600"
+                disabled={isLoading}
+              >
+                {isLoading ? "Creating Account..." : "Verify & Create Account"}
+              </Button>
+
+              {/* Resend OTP */}
+              <div className="text-center space-y-2">
+                <button
+                  type="button"
+                  onClick={handleResendOTP}
+                  className="text-sm text-blue-600 hover:text-blue-800 underline"
+                  disabled={isLoading}
+                >
+                  Resend OTP
+                </button>
+                <br />
+                <button
+                  type="button"
+                  onClick={handleBackToDetails}
+                  className="text-sm text-gray-600 hover:text-gray-800 underline"
+                >
+                  Change details
+                </button>
+              </div>
+            </form>
+          )}
+
+          {/* Login Link */}
+          <div className="text-center pt-4 border-t">
+            <p className="text-sm text-gray-600">
+              Already have an account?{" "}
+              <button
+                type="button"
+                onClick={handleLoginRedirect}
+                className="text-blue-600 hover:text-blue-800 font-medium underline"
+              >
+                Sign in
+              </button>
+            </p>
+          </div>
           </CardContent>
         </Card>
 
@@ -442,6 +553,9 @@ const SignUp = () => {
         <div className="text-center mt-6 text-xs text-gray-500">
           <p>By creating an account, you agree to our Terms of Service and Privacy Policy</p>
         </div>
+
+        {/* reCAPTCHA container for phone auth */}
+        <div id="recaptcha-container"></div>
       </div>
     </div>
   );
