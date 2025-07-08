@@ -17,7 +17,7 @@ interface PostGigDialogProps {
 }
 
 const PostGigDialog = ({ open, onOpenChange, onSubmit }: PostGigDialogProps) => {
-  const { userProfile } = useAuth();
+  const { userProfile, currentUser } = useAuth();
   const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(false);
   const [formData, setFormData] = useState({
@@ -116,9 +116,22 @@ const PostGigDialog = ({ open, onOpenChange, onSubmit }: PostGigDialogProps) => 
     }
 
     if (!userProfile) {
+      console.error("❌ PostGig: No userProfile found");
+      console.log("Current user:", currentUser);
       toast({
         title: "Authentication Error",
         description: "Please log in to post a gig.",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    // Check if profile is complete
+    if (!userProfile.college || !userProfile.firstName || !userProfile.lastName) {
+      console.error("❌ PostGig: Incomplete user profile", userProfile);
+      toast({
+        title: "Profile Incomplete",
+        description: "Please complete your profile before posting a gig. Go to Profile page to update your information.",
         variant: "destructive"
       });
       return;
@@ -141,8 +154,14 @@ const PostGigDialog = ({ open, onOpenChange, onSubmit }: PostGigDialogProps) => 
         status: 'open' as const
       };
 
+      console.log("🚀 Posting gig with data:", gigData);
+      console.log("🔍 User profile college:", userProfile.college);
+      console.log("🔍 User ID:", userProfile.uid);
+      console.log("🔍 User name:", `${userProfile.firstName} ${userProfile.lastName}`);
+
       // Save to Firebase
       const createdGig = await gigService.createGig(gigData);
+      console.log("✅ Gig created successfully:", createdGig);
 
       toast({
         title: "Gig Posted Successfully!",

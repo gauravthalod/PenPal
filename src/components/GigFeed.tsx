@@ -8,6 +8,7 @@ import GigCard from "./GigCard";
 import PostGigDialog from "./PostGigDialog";
 import MakeOfferDialog from "./MakeOfferDialog";
 import { Gig } from "@/services/database";
+import { useAuth } from "@/contexts/AuthContext";
 
 // Transform Firebase Gig to component Gig format
 interface ComponentGig {
@@ -33,6 +34,7 @@ interface GigFeedProps {
 }
 
 const GigFeed = ({ gigs, loading = false, onMakeOffer, onPostGig, onRefresh }: GigFeedProps) => {
+  const { userProfile } = useAuth();
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("");
   const [selectedPrice, setSelectedPrice] = useState("");
@@ -137,6 +139,10 @@ const GigFeed = ({ gigs, loading = false, onMakeOffer, onPostGig, onRefresh }: G
   };
 
   const handleMakeOfferClick = (gig: ComponentGig) => {
+    // Additional check to prevent offers on own gigs (UI level)
+    if (userProfile && userProfile.uid === gig.postedBy) {
+      return; // Don't open dialog for own gigs
+    }
     setSelectedGig(gig);
     setShowMakeOfferDialog(true);
   };

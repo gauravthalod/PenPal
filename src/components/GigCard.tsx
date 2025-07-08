@@ -3,6 +3,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Edit, User, Calendar, MessageSquare } from "lucide-react";
+import { useAuth } from "@/contexts/AuthContext";
 
 interface GigCardProps {
   gig: {
@@ -15,11 +16,16 @@ interface GigCardProps {
     poster: string;
     university: string;
     timePosted: string;
+    postedBy?: string; // Add postedBy to check ownership
   };
   onMakeOffer?: () => void;
 }
 
 const GigCard = ({ gig, onMakeOffer }: GigCardProps) => {
+  const { userProfile } = useAuth();
+
+  // Check if current user is the gig poster
+  const isOwnGig = userProfile && gig.postedBy && userProfile.uid === gig.postedBy;
   const getCategoryIcon = (category: string) => {
     switch (category.toLowerCase()) {
       case 'academic':
@@ -68,14 +74,21 @@ const GigCard = ({ gig, onMakeOffer }: GigCardProps) => {
               <span>•</span>
               <span>{gig.university}</span>
             </div>
-            <Button
-              onClick={onMakeOffer}
-              className="bg-blue-500 hover:bg-blue-600 text-white px-3 py-1.5"
-              size="sm"
-            >
-              <MessageSquare className="w-3 h-3 mr-1" />
-              <span className="text-xs">Offer</span>
-            </Button>
+            {!isOwnGig && (
+              <Button
+                onClick={onMakeOffer}
+                className="bg-blue-500 hover:bg-blue-600 text-white px-3 py-1.5"
+                size="sm"
+              >
+                <MessageSquare className="w-3 h-3 mr-1" />
+                <span className="text-xs">Offer</span>
+              </Button>
+            )}
+            {isOwnGig && (
+              <Badge variant="outline" className="text-xs text-gray-500">
+                Your Gig
+              </Badge>
+            )}
           </div>
         </div>
 
@@ -114,14 +127,21 @@ const GigCard = ({ gig, onMakeOffer }: GigCardProps) => {
               <span>{gig.deadline}</span>
             </div>
 
-            <Button
-              onClick={onMakeOffer}
-              className="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2"
-              size="sm"
-            >
-              <MessageSquare className="w-4 h-4 mr-2" />
-              Make Offer
-            </Button>
+            {!isOwnGig && (
+              <Button
+                onClick={onMakeOffer}
+                className="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2"
+                size="sm"
+              >
+                <MessageSquare className="w-4 h-4 mr-2" />
+                Make Offer
+              </Button>
+            )}
+            {isOwnGig && (
+              <Badge variant="outline" className="text-sm text-gray-500">
+                Your Gig
+              </Badge>
+            )}
           </div>
         </div>
       </CardContent>

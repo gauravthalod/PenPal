@@ -3,6 +3,8 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { User, Bell, LogIn, BarChart3, MessageCircle } from "lucide-react";
 import { useNavigate } from "react-router-dom";
+import { useSplash } from "@/contexts/SplashContext";
+import { useAuth } from "@/contexts/AuthContext";
 
 interface HeaderProps {
   onLoginClick?: () => void;
@@ -11,6 +13,8 @@ interface HeaderProps {
 
 const Header = ({ onLoginClick, showLoginButton = false }: HeaderProps) => {
   const navigate = useNavigate();
+  const { triggerSplash } = useSplash();
+  const { currentUser, userProfile } = useAuth();
 
   const handleProfileClick = () => {
     navigate("/profile");
@@ -25,7 +29,20 @@ const Header = ({ onLoginClick, showLoginButton = false }: HeaderProps) => {
   };
 
   const handleLogoClick = () => {
-    navigate("/");
+    console.log("🎬 Logo clicked, triggering splash screen...");
+
+    // Only show splash if not already on home page
+    if (window.location.pathname !== "/") {
+      triggerSplash(2000, false); // 2 seconds, no progress bar
+
+      // Navigate after a short delay to allow splash to start
+      setTimeout(() => {
+        navigate("/");
+      }, 100);
+    } else {
+      // If already on home page, just show a quick splash
+      triggerSplash(1500, false);
+    }
   };
 
   const handleDashboardClick = () => {
@@ -78,7 +95,7 @@ const Header = ({ onLoginClick, showLoginButton = false }: HeaderProps) => {
               <BarChart3 className="w-5 h-5 sm:w-6 sm:h-6 text-gray-600" />
             </button>
 
-            {showLoginButton ? (
+            {showLoginButton || !currentUser ? (
               <Button
                 onClick={handleLoginClick}
                 className="bg-blue-500 hover:bg-blue-600 text-white text-sm sm:text-base px-3 sm:px-4"

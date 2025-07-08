@@ -4,9 +4,11 @@ import { useToast } from "@/hooks/use-toast";
 import Header from "@/components/Header";
 import NavigationTabs from "@/components/NavigationTabs";
 import GigFeed from "@/components/GigFeed";
+import SplashWrapper from "@/components/SplashWrapper";
 import Buzz from "./Buzz";
 import { Plus, MessageCircle } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
+import { useSplash } from "@/contexts/SplashContext";
 import { gigService, Gig } from "@/services/database";
 
 
@@ -16,6 +18,7 @@ const Index = () => {
   const [loading, setLoading] = useState(true);
   const { toast } = useToast();
   const { userProfile } = useAuth();
+  const { showSplash } = useSplash();
 
   // Generate mock data for testing when user is not authenticated
   const generateMockGigs = (): Gig[] => {
@@ -62,10 +65,10 @@ const Index = () => {
 
   // Fetch gigs from Firebase
   const fetchGigs = async () => {
-    console.log("fetchGigs called, userProfile:", userProfile);
+    console.log("🔍 fetchGigs called, userProfile:", userProfile);
 
     if (!userProfile?.college) {
-      console.log("No user profile or college found, using mock data");
+      console.log("⚠️ No user profile or college found, using mock data");
       setGigs(generateMockGigs());
       setLoading(false);
       return;
@@ -73,28 +76,42 @@ const Index = () => {
 
     try {
       setLoading(true);
-      console.log("Fetching gigs for college:", userProfile.college);
+      console.log("🔍 Fetching gigs for college:", userProfile.college);
+      console.log("🔍 Current user ID:", userProfile.uid);
 
       let fetchedGigs;
       try {
         // Try to get gigs by college first
         fetchedGigs = await gigService.getGigsByCollege(userProfile.college);
+        console.log("✅ College-specific fetch successful, found:", fetchedGigs.length, "gigs");
       } catch (collegeError) {
-        console.warn("College-specific fetch failed, trying to get all gigs:", collegeError);
+        console.warn("⚠️ College-specific fetch failed, trying to get all gigs:", collegeError);
         // Fallback: get all gigs and filter client-side
         const allGigs = await gigService.getAllGigs();
-        fetchedGigs = allGigs.filter(gig => gig.college === userProfile.college);
+        console.log("📋 All gigs from database:", allGigs.length);
+        fetchedGigs = allGigs.filter(gig => {
+          console.log(`🔍 Checking gig: "${gig.title}" - College: "${gig.college}" vs "${userProfile.college}" - Status: "${gig.status}"`);
+          return gig.college === userProfile.college && gig.status === 'open';
+        });
+        console.log("✅ Filtered gigs for college:", fetchedGigs.length);
       }
 
-      console.log("Fetched gigs:", fetchedGigs);
+      // Log details about each fetched gig
+      fetchedGigs.forEach((gig, index) => {
+        console.log(`📋 Gig ${index + 1}: "${gig.title}" by ${gig.postedByName} (${gig.postedBy}) - College: ${gig.college}`);
+      });
+
+      console.log("🎯 Final fetched gigs:", fetchedGigs);
       setGigs(fetchedGigs);
 
       // Show success message if we got gigs
       if (fetchedGigs.length > 0) {
-        console.log(`Successfully loaded ${fetchedGigs.length} gigs`);
+        console.log(`✅ Successfully loaded ${fetchedGigs.length} gigs`);
+      } else {
+        console.log("⚠️ No gigs found for college:", userProfile.college);
       }
     } catch (error) {
-      console.error("Error fetching gigs:", error);
+      console.error("❌ Error fetching gigs:", error);
 
       // Check if it's a permission error
       if (error.code === 'permission-denied') {
@@ -106,7 +123,7 @@ const Index = () => {
         setGigs([]);
       } else {
         // For other errors, show the gigs that are already stored
-        console.log("Error occurred, keeping existing gigs or showing empty state");
+        console.log("❌ Error occurred, keeping existing gigs or showing empty state");
         toast({
           title: "Connection Issue",
           description: "Having trouble loading latest gigs. Please try again.",
@@ -142,31 +159,33 @@ const Index = () => {
 
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <Header onLoginClick={handleLogin} />
+    <SplashWrapper>
+      <div className="min-h-screen bg-gray-50">
+        <Header onLoginClick={handleLogin} />
 
-      <div className="max-w-4xl mx-auto px-3 sm:px-4 py-4 sm:py-6">
-        <NavigationTabs activeTab={activeTab} onTabChange={setActiveTab} />
+        <div className="max-w-4xl mx-auto px-3 sm:px-4 py-4 sm:py-6">
+          <NavigationTabs activeTab={activeTab} onTabChange={setActiveTab} />
 
-        {activeTab === "trade" && (
-          <div className="mt-4 sm:mt-6">
-            <GigFeed
-              gigs={gigs}
-              loading={loading}
-              onMakeOffer={handleMakeOffer}
-              onPostGig={handlePostGig}
-              onRefresh={fetchGigs}
-            />
-          </div>
-        )}
+          {activeTab === "trade" && (
+            <div className="mt-4 sm:mt-6">
+              <GigFeed
+                gigs={gigs}
+                loading={loading}
+                onMakeOffer={handleMakeOffer}
+                onPostGig={handlePostGig}
+                onRefresh={fetchGigs}
+              />
+            </div>
+          )}
 
-        {activeTab === "buzz" && (
-          <div className="mt-4 sm:mt-6">
-            <Buzz />
-          </div>
-        )}
+          {activeTab === "buzz" && (
+            <div className="mt-4 sm:mt-6">
+              <Buzz />
+            </div>
+          )}
+        </div>
       </div>
-    </div>
+    </SplashWrapper>
   );
 };
 

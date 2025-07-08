@@ -61,6 +61,16 @@ const MakeOfferDialog = ({ open, onOpenChange, onSubmit, gig }: MakeOfferDialogP
       return;
     }
 
+    // Prevent users from making offers on their own gigs
+    if (userProfile.uid === gig.postedBy) {
+      toast({
+        title: "Invalid Action",
+        description: "You cannot make an offer on your own gig.",
+        variant: "destructive"
+      });
+      return;
+    }
+
     const offerPrice = parseFloat(formData.offerPrice);
     if (isNaN(offerPrice) || offerPrice <= 0) {
       toast({

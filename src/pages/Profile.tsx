@@ -25,11 +25,14 @@ const Profile = () => {
 
   const handleSave = async (updatedData: any) => {
     try {
+      console.log("🔄 Profile page: Saving profile data...", updatedData);
       await updateUserProfile(updatedData);
       setIsEditing(false);
-      console.log("Profile saved successfully");
+      console.log("✅ Profile saved successfully");
     } catch (error) {
-      console.error("Error saving profile:", error);
+      console.error("❌ Error saving profile:", error);
+      // Error will be handled by ProfileForm component
+      throw error;
     }
   };
 
