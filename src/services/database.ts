@@ -162,10 +162,13 @@ export const gigService = {
     }
   },
 
-  // Get all gigs (regardless of college)
-  async getAllGigs(limitCount = 50) {
+  // Get all gigs (regardless of college) - excludes user's own gigs
+  async getAllGigs(limitCount = 50, currentUserId?: string) {
     try {
       console.log("🌍 Getting all gigs from all colleges...");
+      if (currentUserId) {
+        console.log("🚫 Excluding gigs posted by current user:", currentUserId);
+      }
       const gigsRef = collection(db, COLLECTIONS.GIGS);
 
       // Get more gigs initially to account for filtering
@@ -180,7 +183,8 @@ export const gigService = {
           title: data.title,
           college: data.college,
           status: data.status,
-          postedBy: data.postedByName
+          postedBy: data.postedByName,
+          postedById: data.postedBy
         });
         return {
           id: doc.id,
@@ -191,14 +195,29 @@ export const gigService = {
         };
       }) as Gig[];
 
-      // Filter only by status (open) and sort by creation date
+      // Filter by status (open) and exclude user's own gigs
       const filteredGigs = gigs
-        .filter(gig => gig.status === 'open')
+        .filter(gig => {
+          const isOpen = gig.status === 'open';
+          const isNotOwnGig = !currentUserId || gig.postedBy !== currentUserId;
+
+          if (currentUserId && gig.postedBy === currentUserId) {
+            console.log(`🚫 Excluding own gig: "${gig.title}" (${gig.id})`);
+          }
+
+          return isOpen && isNotOwnGig;
+        })
         .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())
         .slice(0, limitCount);
 
-      console.log("✅ Filtered gigs (all colleges):", filteredGigs.length);
+      console.log("✅ Filtered gigs (all colleges, excluding own):", filteredGigs.length);
       console.log("🎯 Gigs from colleges:", [...new Set(filteredGigs.map(g => g.college))]);
+
+      if (currentUserId) {
+        const ownGigsCount = gigs.filter(g => g.postedBy === currentUserId && g.status === 'open').length;
+        console.log(`📊 Excluded ${ownGigsCount} own gigs from browse view`);
+      }
+
       return filteredGigs;
     } catch (error) {
       console.error("❌ Error in getAllGigs:", error);
@@ -303,6 +322,25 @@ export const gigService = {
       return true;
     } catch (error) {
       console.error("❌ Error deleting gig:", error);
+      throw error;
+    }
+  },
+
+  // Update gig status
+  async updateGigStatus(gigId: string, status: Gig['status']) {
+    try {
+      console.log("🔄 Updating gig status:", gigId, "to", status);
+      const gigRef = doc(db, COLLECTIONS.GIGS, gigId);
+
+      await updateDoc(gigRef, {
+        status,
+        updatedAt: Timestamp.now()
+      });
+
+      console.log("✅ Gig status updated successfully");
+      return true;
+    } catch (error) {
+      console.error("❌ Error updating gig status:", error);
       throw error;
     }
   }
@@ -440,6 +478,41 @@ export const offerService = {
       } as Offer;
     }
     return null;
+  },
+
+  // Update offer details
+  async updateOffer(offerId: string, updateData: Partial<Offer>) {
+    try {
+      console.log("🔄 Updating offer:", offerId, updateData);
+      const offerRef = doc(db, COLLECTIONS.OFFERS, offerId);
+
+      const updatePayload = {
+        ...updateData,
+        updatedAt: Timestamp.now()
+      };
+
+      await updateDoc(offerRef, updatePayload);
+      console.log("✅ Offer updated successfully");
+
+      return { id: offerId, ...updatePayload };
+    } catch (error) {
+      console.error("❌ Error updating offer:", error);
+      throw error;
+    }
+  },
+
+  // Delete offer
+  async deleteOffer(offerId: string) {
+    try {
+      console.log("🗑️ Deleting offer:", offerId);
+      const offerRef = doc(db, COLLECTIONS.OFFERS, offerId);
+      await deleteDoc(offerRef);
+      console.log("✅ Offer deleted successfully");
+      return true;
+    } catch (error) {
+      console.error("❌ Error deleting offer:", error);
+      throw error;
+    }
   },
 
   // Get offer by ID
@@ -644,17 +717,22 @@ export const adminService = {
   // Get user statistics
   async getUserStats(userId: string) {
     try {
+      console.log(`Admin: Getting stats for user ${userId}...`);
+
       const [userGigs, userOffers] = await Promise.all([
         gigService.getUserGigs(userId),
         this.getUserOffers(userId)
       ]);
 
-      return {
+      const stats = {
         totalGigs: userGigs.length,
         activeGigs: userGigs.filter(gig => gig.status === 'open').length,
         completedGigs: userGigs.filter(gig => gig.status === 'completed').length,
         totalOffers: userOffers.length
       };
+
+      console.log(`Admin: Stats for user ${userId}:`, stats);
+      return stats;
     } catch (error) {
       console.error(`Admin: Error getting user stats for ${userId}:`, error);
       throw error;
@@ -665,19 +743,25 @@ export const adminService = {
   async getUserOffers(userId: string) {
     try {
       const offersRef = collection(db, COLLECTIONS.OFFERS);
+      // Simplified query without orderBy to avoid index requirement
       const q = query(
         offersRef,
-        where('offeredBy', '==', userId),
-        orderBy('createdAt', 'desc')
+        where('offeredBy', '==', userId)
       );
 
       const querySnapshot = await getDocs(q);
-      return querySnapshot.docs.map(doc => ({
+      const offers = querySnapshot.docs.map(doc => ({
         id: doc.id,
         ...doc.data(),
         createdAt: doc.data().createdAt?.toDate() || new Date(),
         updatedAt: doc.data().updatedAt?.toDate() || new Date()
       })) as Offer[];
+
+      // Sort client-side to avoid index requirement
+      offers.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
+
+      console.log(`Admin: Found ${offers.length} offers for user ${userId}`);
+      return offers;
     } catch (error) {
       console.error(`Admin: Error getting user offers for ${userId}:`, error);
       throw error;

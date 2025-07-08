@@ -4,10 +4,12 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { ArrowLeft, CheckCircle, Clock, DollarSign, Calendar, User, Star, MessageSquare, Loader2, RefreshCw, Edit, Trash2 } from "lucide-react";
+import { ArrowLeft, CheckCircle, Clock, DollarSign, Calendar, User, Star, MessageSquare, Loader2, RefreshCw, Edit, Trash2, Check } from "lucide-react";
 import Header from "@/components/Header";
 import EditGigDialog from "@/components/EditGigDialog";
 import DeleteGigDialog from "@/components/DeleteGigDialog";
+import EditOfferDialog from "@/components/EditOfferDialog";
+import DeleteOfferDialog from "@/components/DeleteOfferDialog";
 import { useAuth } from "@/contexts/AuthContext";
 import { gigService, offerService, Gig, Offer } from "@/services/database";
 import { useToast } from "@/hooks/use-toast";
@@ -42,6 +44,14 @@ const Dashboard = () => {
   const [deleteGigDialog, setDeleteGigDialog] = useState<{ open: boolean; gig: Gig | null }>({
     open: false,
     gig: null
+  });
+  const [editOfferDialog, setEditOfferDialog] = useState<{ open: boolean; offer: Offer | null }>({
+    open: false,
+    offer: null
+  });
+  const [deleteOfferDialog, setDeleteOfferDialog] = useState<{ open: boolean; offer: Offer | null }>({
+    open: false,
+    offer: null
   });
   const [stats, setStats] = useState<DashboardStats>({
     totalEarnings: 0,
@@ -286,52 +296,7 @@ const Dashboard = () => {
     };
   }, []);
 
-  // Test Firebase connection
-  const testFirebaseConnection = async () => {
-    if (!userProfile?.uid) {
-      console.log("No user profile for testing");
-      return;
-    }
 
-    try {
-      console.log("🧪 Testing Firebase connection...");
-
-      // Test basic Firebase read
-      const { collection, getDocs } = await import('firebase/firestore');
-      const { db } = await import('@/lib/firebase');
-
-      // Test reading from gigs collection
-      console.log("📋 Testing gigs collection...");
-      const gigsRef = collection(db, 'gigs');
-      const gigsSnapshot = await getDocs(gigsRef);
-      console.log(`✅ Gigs collection accessible. Found ${gigsSnapshot.size} documents`);
-
-      // Test reading from offers collection
-      console.log("📤 Testing offers collection...");
-      const offersRef = collection(db, 'offers');
-      const offersSnapshot = await getDocs(offersRef);
-      console.log(`✅ Offers collection accessible. Found ${offersSnapshot.size} documents`);
-
-      // Test reading from users collection
-      console.log("👥 Testing users collection...");
-      const usersRef = collection(db, 'users');
-      const usersSnapshot = await getDocs(usersRef);
-      console.log(`✅ Users collection accessible. Found ${usersSnapshot.size} documents`);
-
-      toast({
-        title: "Firebase Test Successful",
-        description: `Gigs: ${gigsSnapshot.size}, Offers: ${offersSnapshot.size}, Users: ${usersSnapshot.size}`,
-      });
-
-    } catch (error) {
-      console.error("❌ Firebase test failed:", error);
-      toast({
-        title: "Firebase Test Failed",
-        description: error.message,
-        variant: "destructive"
-      });
-    }
-  };
 
   // Handle edit gig
   const handleEditGig = (gig: Gig) => {
@@ -369,141 +334,77 @@ const Dashboard = () => {
     });
   };
 
+  // Handle mark gig as completed
+  const handleMarkCompleted = async (gig: Gig) => {
+    try {
+      console.log("✅ Marking gig as completed:", gig.id);
+
+      await gigService.updateGigStatus(gig.id!, 'completed');
+
+      // Update local state
+      setPostedGigs(prev => prev.map(g =>
+        g.id === gig.id ? { ...g, status: 'completed' } : g
+      ));
+
+      toast({
+        title: "Gig Completed!",
+        description: `"${gig.title}" has been marked as completed.`,
+      });
+
+      console.log("✅ Gig marked as completed successfully");
+    } catch (error) {
+      console.error("❌ Error marking gig as completed:", error);
+      toast({
+        title: "Error",
+        description: "Failed to mark gig as completed. Please try again.",
+        variant: "destructive"
+      });
+    }
+  };
+
+  // Handle edit offer
+  const handleEditOffer = (offer: Offer) => {
+    console.log("✏️ Opening edit dialog for offer:", offer.id);
+    setEditOfferDialog({ open: true, offer });
+  };
+
+  // Handle delete offer
+  const handleDeleteOffer = (offer: Offer) => {
+    console.log("🗑️ Opening delete dialog for offer:", offer.id);
+    setDeleteOfferDialog({ open: true, offer });
+  };
+
+  // Handle offer updated
+  const handleOfferUpdated = (updatedOffer: Offer) => {
+    console.log("✅ Offer updated, refreshing dashboard...");
+    setOffersMade(prev => prev.map(offer =>
+      offer.id === updatedOffer.id ? updatedOffer : offer
+    ));
+
+    toast({
+      title: "Dashboard Updated",
+      description: "Your offer changes are now visible.",
+    });
+  };
+
+  // Handle offer deleted
+  const handleOfferDeleted = (offerId: string) => {
+    console.log("✅ Offer deleted, refreshing dashboard...");
+    setOffersMade(prev => prev.filter(offer => offer.id !== offerId));
+
+    toast({
+      title: "Dashboard Updated",
+      description: "The deleted offer has been removed from your dashboard.",
+    });
+  };
+
   const handleBack = () => {
     navigate("/");
   };
 
-  // Debug function to check why gigs aren't appearing
-  const debugDashboardData = async () => {
-    if (!userProfile) {
-      console.log("❌ No user profile available for debugging");
-      toast({
-        title: "Debug Error",
-        description: "Please login first",
-        variant: "destructive"
-      });
-      return;
-    }
 
-    console.log("🔍 DEBUGGING DASHBOARD DATA");
-    console.log("=".repeat(50));
 
-    try {
-      // Check user profile
-      console.log("👤 Current User Profile:");
-      console.log("   UID:", userProfile.uid);
-      console.log("   Name:", `${userProfile.firstName} ${userProfile.lastName}`);
-      console.log("   College:", userProfile.college);
-      console.log("   Email:", userProfile.email);
 
-      // Check Firebase connection
-      const { collection, getDocs, query, where } = await import('firebase/firestore');
-      const { db } = await import('@/lib/firebase');
-
-      // Check all gigs in database
-      console.log("\n📋 ALL GIGS IN DATABASE:");
-      const allGigsRef = collection(db, 'gigs');
-      const allGigsSnapshot = await getDocs(allGigsRef);
-      console.log(`   Total gigs in database: ${allGigsSnapshot.size}`);
-
-      allGigsSnapshot.docs.forEach((doc, index) => {
-        const data = doc.data();
-        console.log(`   Gig ${index + 1}:`, {
-          id: doc.id,
-          title: data.title,
-          postedBy: data.postedBy,
-          postedByName: data.postedByName,
-          status: data.status,
-          college: data.college
-        });
-      });
-
-      // Check gigs for current user specifically
-      console.log("\n🎯 GIGS FOR CURRENT USER:");
-      const userGigsRef = collection(db, 'gigs');
-      const userGigsQuery = query(userGigsRef, where('postedBy', '==', userProfile.uid));
-      const userGigsSnapshot = await getDocs(userGigsQuery);
-      console.log(`   Gigs posted by current user: ${userGigsSnapshot.size}`);
-
-      userGigsSnapshot.docs.forEach((doc, index) => {
-        const data = doc.data();
-        console.log(`   User Gig ${index + 1}:`, {
-          id: doc.id,
-          title: data.title,
-          postedBy: data.postedBy,
-          status: data.status,
-          createdAt: data.createdAt?.toDate?.()?.toISOString() || 'No date'
-        });
-      });
-
-      // Check current dashboard state
-      console.log("\n📊 CURRENT DASHBOARD STATE:");
-      console.log("   Posted Gigs in state:", postedGigs.length);
-      console.log("   Offers Made in state:", offersMade.length);
-      console.log("   Offers Received in state:", offersReceived.length);
-      console.log("   Loading state:", loading);
-
-      toast({
-        title: "Debug Complete",
-        description: `Found ${allGigsSnapshot.size} total gigs, ${userGigsSnapshot.size} for current user. Check console for details.`,
-      });
-
-    } catch (error) {
-      console.error("❌ Debug failed:", error);
-      toast({
-        title: "Debug Failed",
-        description: "Check console for error details",
-        variant: "destructive"
-      });
-    }
-  };
-
-  // Test gig creation
-  const testGigCreation = async () => {
-    if (!userProfile) {
-      toast({
-        title: "Error",
-        description: "Please login first",
-        variant: "destructive"
-      });
-      return;
-    }
-
-    console.log("🧪 Testing gig creation...");
-    try {
-      const testGigData = {
-        title: `Test Dashboard Gig ${Date.now()}`,
-        description: "This is a test gig to verify dashboard visibility",
-        category: "Academic",
-        budget: 500,
-        deadline: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
-        location: "Campus",
-        college: userProfile.college,
-        postedBy: userProfile.uid,
-        postedByName: `${userProfile.firstName} ${userProfile.lastName}`.trim(),
-        status: 'open' as const
-      };
-
-      console.log("🚀 Creating test gig:", testGigData);
-      const createdGig = await gigService.createGig(testGigData);
-      console.log("✅ Test gig created:", createdGig);
-
-      // Refresh dashboard data
-      await fetchDashboardData();
-
-      toast({
-        title: "Test Gig Created!",
-        description: "Check the 'Gigs Posted' tab to see your test gig",
-      });
-    } catch (error) {
-      console.error("❌ Test gig creation failed:", error);
-      toast({
-        title: "Test Failed",
-        description: "Check console for error details",
-        variant: "destructive"
-      });
-    }
-  };
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -596,33 +497,17 @@ const Dashboard = () => {
           </Button>
           <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">My Dashboard</h1>
 
-          {/* Debug buttons - remove in production */}
-          <div className="flex gap-2 ml-auto">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={debugDashboardData}
-              className="text-xs"
-            >
-              Debug Dashboard
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={testGigCreation}
-              className="text-xs"
-            >
-              Test Gig Creation
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={testFirebaseConnection}
-              className="text-xs"
-            >
-              Test Firebase
-            </Button>
-          </div>
+          {/* Refresh button */}
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={fetchDashboardData}
+            disabled={loading}
+            className="flex items-center gap-2 ml-auto"
+          >
+            <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
+            Refresh
+          </Button>
         </div>
 
         {/* Stats Cards */}
@@ -748,6 +633,39 @@ const Dashboard = () => {
                           <div className="text-sm text-gray-500 mt-1">Proposed Budget</div>
                         </div>
                       </div>
+
+                      {/* Edit and Delete buttons - only for pending offers */}
+                      {offer.status === 'pending' && (
+                        <div className="flex gap-2 pt-4 border-t">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => handleEditOffer(offer)}
+                            className="flex items-center gap-2 flex-1"
+                          >
+                            <Edit className="w-4 h-4" />
+                            Edit
+                          </Button>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => handleDeleteOffer(offer)}
+                            className="flex items-center gap-2 flex-1 text-red-600 border-red-200 hover:bg-red-50"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                            Delete
+                          </Button>
+                        </div>
+                      )}
+
+                      {/* Status message for non-pending offers */}
+                      {offer.status !== 'pending' && (
+                        <div className="pt-4 border-t">
+                          <p className="text-sm text-gray-500 text-center">
+                            This offer has been {offer.status} and cannot be modified
+                          </p>
+                        </div>
+                      )}
                     </CardContent>
                   </Card>
                 ))}
@@ -813,27 +731,52 @@ const Dashboard = () => {
                         </div>
                       </div>
 
-                      {/* Edit and Delete buttons */}
-                      <div className="flex gap-2 pt-4 border-t">
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => handleEditGig(gig)}
-                          className="flex items-center gap-2 flex-1"
-                        >
-                          <Edit className="w-4 h-4" />
-                          Edit
-                        </Button>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => handleDeleteGig(gig)}
-                          className="flex items-center gap-2 flex-1 text-red-600 border-red-200 hover:bg-red-50"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                          Delete
-                        </Button>
-                      </div>
+                      {/* Action buttons - conditional based on gig status */}
+                      {gig.status === 'completed' ? (
+                        <div className="pt-4 border-t">
+                          <div className="flex items-center justify-center gap-2 py-3">
+                            <CheckCircle className="w-5 h-5 text-green-600" />
+                            <span className="text-sm text-green-600 font-medium">
+                              Project Completed Successfully
+                            </span>
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="flex gap-2 pt-4 border-t">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => handleEditGig(gig)}
+                            className="flex items-center gap-2 flex-1"
+                          >
+                            <Edit className="w-4 h-4" />
+                            Edit
+                          </Button>
+
+                          {/* Mark as Completed button - only for open/in_progress gigs */}
+                          {(gig.status === 'open' || gig.status === 'in_progress') && (
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => handleMarkCompleted(gig)}
+                              className="flex items-center gap-2 flex-1 text-green-600 border-green-200 hover:bg-green-50"
+                            >
+                              <CheckCircle className="w-4 h-4" />
+                              Complete
+                            </Button>
+                          )}
+
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => handleDeleteGig(gig)}
+                            className="flex items-center gap-2 flex-1 text-red-600 border-red-200 hover:bg-red-50"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                            Delete
+                          </Button>
+                        </div>
+                      )}
                     </CardContent>
                   </Card>
                 ))}
@@ -945,6 +888,22 @@ const Dashboard = () => {
         open={deleteGigDialog.open}
         onOpenChange={(open) => setDeleteGigDialog({ open, gig: open ? deleteGigDialog.gig : null })}
         onGigDeleted={handleGigDeleted}
+      />
+
+      {/* Edit Offer Dialog */}
+      <EditOfferDialog
+        offer={editOfferDialog.offer}
+        open={editOfferDialog.open}
+        onOpenChange={(open) => setEditOfferDialog({ open, offer: open ? editOfferDialog.offer : null })}
+        onOfferUpdated={handleOfferUpdated}
+      />
+
+      {/* Delete Offer Dialog */}
+      <DeleteOfferDialog
+        offer={deleteOfferDialog.offer}
+        open={deleteOfferDialog.open}
+        onOpenChange={(open) => setDeleteOfferDialog({ open, offer: open ? deleteOfferDialog.offer : null })}
+        onOfferDeleted={handleOfferDeleted}
       />
     </div>
   );

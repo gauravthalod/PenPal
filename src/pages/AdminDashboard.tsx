@@ -67,10 +67,13 @@ const AdminDashboard = () => {
       const fetchedUsers = await adminService.getAllUsers();
 
       // Enhance users with additional stats
+      console.log("Admin: Getting stats for each user...");
       const enhancedUsers = await Promise.all(
         fetchedUsers.map(async (user) => {
           try {
+            console.log(`Admin: Getting stats for user ${user.firstName} ${user.lastName} (${user.id})...`);
             const stats = await adminService.getUserStats(user.id);
+            console.log(`Admin: Stats for ${user.firstName} ${user.lastName}:`, stats);
             return {
               ...user,
               gigCount: stats.totalGigs,
@@ -78,7 +81,7 @@ const AdminDashboard = () => {
               status: "active" as const // Default status, can be enhanced later
             };
           } catch (error) {
-            console.warn(`Failed to get stats for user ${user.id}:`, error);
+            console.warn(`Failed to get stats for user ${user.id} (${user.firstName} ${user.lastName}):`, error);
             return {
               ...user,
               gigCount: 0,
@@ -279,6 +282,7 @@ const AdminDashboard = () => {
   const activeUsers = users.filter(user => user.status === "active").length;
   const totalGigs = gigs.length;
   const activeGigs = gigs.filter(gig => gig.status === "open").length;
+  const completedGigs = gigs.filter(gig => gig.status === "completed").length;
   const suspendedUsers = users.filter(user => user.status === "suspended").length;
 
   return (
@@ -311,7 +315,7 @@ const AdminDashboard = () => {
 
       <div className="max-w-6xl mx-auto px-4 py-6">
         {/* Stats Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4 mb-6">
           <Card>
             <CardContent className="p-4">
               <div className="flex items-center gap-3">
@@ -349,6 +353,20 @@ const AdminDashboard = () => {
                 <div>
                   <p className="text-sm text-gray-600">Active Gigs</p>
                   <p className="text-xl font-bold text-yellow-600">{loading ? "..." : activeGigs}</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardContent className="p-4">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 bg-green-100 rounded-lg flex items-center justify-center">
+                  <CheckCircle className="w-5 h-5 text-green-600" />
+                </div>
+                <div>
+                  <p className="text-sm text-gray-600">Completed Gigs</p>
+                  <p className="text-xl font-bold text-green-600">{loading ? "..." : completedGigs}</p>
                 </div>
               </div>
             </CardContent>

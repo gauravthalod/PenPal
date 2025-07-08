@@ -109,9 +109,9 @@ const Index = () => {
       console.log("🌍 Fetching gigs from ALL colleges (no college filter)");
       console.log("🔍 Current user ID:", userProfile.uid);
 
-      // Get all gigs regardless of college
-      const fetchedGigs = await gigService.getAllGigs();
-      console.log("✅ Successfully fetched gigs from all colleges:", fetchedGigs.length);
+      // Get all gigs regardless of college, excluding user's own gigs
+      const fetchedGigs = await gigService.getAllGigs(50, userProfile.uid);
+      console.log("✅ Successfully fetched gigs from all colleges (excluding own):", fetchedGigs.length);
 
       // Log details about each fetched gig
       fetchedGigs.forEach((gig, index) => {
