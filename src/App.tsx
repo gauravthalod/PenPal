@@ -9,7 +9,6 @@ import { SplashProvider } from "./contexts/SplashContext";
 import SplashScreen from "./components/SplashScreen";
 import Index from "./pages/Index";
 import Profile from "./pages/Profile";
-import Notifications from "./pages/Notifications";
 import Login from "./pages/Login";
 import SignUp from "./pages/SignUp";
 import Dashboard from "./pages/Dashboard";
@@ -58,7 +57,6 @@ const App = () => {
               <Routes>
                 <Route path="/" element={<Index />} />
                 <Route path="/profile" element={<Profile />} />
-                <Route path="/notifications" element={<Notifications />} />
                 <Route path="/login" element={<Login />} />
                 <Route path="/signup" element={<SignUp />} />
                 <Route path="/dashboard" element={<Dashboard />} />

@@ -53,12 +53,42 @@ const Index = () => {
         budget: 500,
         deadline: getDateString(5),
         location: "Campus",
-        college: "CMRIT",
+        college: "CMREC",
         postedBy: "mock-user-2",
         postedByName: "Jane Smith",
         status: 'open',
         createdAt: new Date(Date.now() - 4 * 60 * 60 * 1000), // 4 hours ago
         updatedAt: new Date(Date.now() - 4 * 60 * 60 * 1000)
+      },
+      {
+        id: "mock-3",
+        title: "Math tutoring needed",
+        description: "Looking for help with calculus and statistics",
+        category: "Academic",
+        budget: 400,
+        deadline: getDateString(7),
+        location: "Library",
+        college: "CMRTC",
+        postedBy: "mock-user-3",
+        postedByName: "Alex Johnson",
+        status: 'open',
+        createdAt: new Date(Date.now() - 6 * 60 * 60 * 1000), // 6 hours ago
+        updatedAt: new Date(Date.now() - 6 * 60 * 60 * 1000)
+      },
+      {
+        id: "mock-4",
+        title: "Event photography",
+        description: "Need photographer for college cultural fest",
+        category: "Creative",
+        budget: 800,
+        deadline: getDateString(10),
+        location: "Auditorium",
+        college: "CMRCET",
+        postedBy: "mock-user-4",
+        postedByName: "Sarah Wilson",
+        status: 'open',
+        createdAt: new Date(Date.now() - 8 * 60 * 60 * 1000), // 8 hours ago
+        updatedAt: new Date(Date.now() - 8 * 60 * 60 * 1000)
       }
     ];
   };
@@ -67,8 +97,8 @@ const Index = () => {
   const fetchGigs = async () => {
     console.log("🔍 fetchGigs called, userProfile:", userProfile);
 
-    if (!userProfile?.college) {
-      console.log("⚠️ No user profile or college found, using mock data");
+    if (!userProfile?.uid) {
+      console.log("⚠️ No user profile found, using mock data");
       setGigs(generateMockGigs());
       setLoading(false);
       return;
@@ -76,25 +106,12 @@ const Index = () => {
 
     try {
       setLoading(true);
-      console.log("🔍 Fetching gigs for college:", userProfile.college);
+      console.log("🌍 Fetching gigs from ALL colleges (no college filter)");
       console.log("🔍 Current user ID:", userProfile.uid);
 
-      let fetchedGigs;
-      try {
-        // Try to get gigs by college first
-        fetchedGigs = await gigService.getGigsByCollege(userProfile.college);
-        console.log("✅ College-specific fetch successful, found:", fetchedGigs.length, "gigs");
-      } catch (collegeError) {
-        console.warn("⚠️ College-specific fetch failed, trying to get all gigs:", collegeError);
-        // Fallback: get all gigs and filter client-side
-        const allGigs = await gigService.getAllGigs();
-        console.log("📋 All gigs from database:", allGigs.length);
-        fetchedGigs = allGigs.filter(gig => {
-          console.log(`🔍 Checking gig: "${gig.title}" - College: "${gig.college}" vs "${userProfile.college}" - Status: "${gig.status}"`);
-          return gig.college === userProfile.college && gig.status === 'open';
-        });
-        console.log("✅ Filtered gigs for college:", fetchedGigs.length);
-      }
+      // Get all gigs regardless of college
+      const fetchedGigs = await gigService.getAllGigs();
+      console.log("✅ Successfully fetched gigs from all colleges:", fetchedGigs.length);
 
       // Log details about each fetched gig
       fetchedGigs.forEach((gig, index) => {
@@ -106,9 +123,11 @@ const Index = () => {
 
       // Show success message if we got gigs
       if (fetchedGigs.length > 0) {
-        console.log(`✅ Successfully loaded ${fetchedGigs.length} gigs`);
+        console.log(`✅ Successfully loaded ${fetchedGigs.length} gigs from all colleges`);
+        const colleges = [...new Set(fetchedGigs.map(g => g.college))];
+        console.log("🏫 Colleges represented:", colleges);
       } else {
-        console.log("⚠️ No gigs found for college:", userProfile.college);
+        console.log("⚠️ No gigs found in database");
       }
     } catch (error) {
       console.error("❌ Error fetching gigs:", error);
@@ -138,7 +157,7 @@ const Index = () => {
   // Fetch gigs when component mounts or user profile changes
   useEffect(() => {
     fetchGigs(); // Always fetch, will use mock data if not authenticated
-  }, [userProfile?.college]);
+  }, [userProfile?.uid]); // Changed from college to uid since we now fetch all gigs
 
   const handleMakeOffer = (offerData: { gigId: string; offerPrice: number; message: string }) => {
     // The offer submission is now handled in MakeOfferDialog component

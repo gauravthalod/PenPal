@@ -30,6 +30,7 @@ const Dashboard = () => {
   const [offersMade, setOffersMade] = useState<Offer[]>([]);
   const [offersReceived, setOffersReceived] = useState<Offer[]>([]);
   const [loading, setLoading] = useState(true);
+  const [processingOfferId, setProcessingOfferId] = useState<string | null>(null);
   const [stats, setStats] = useState<DashboardStats>({
     totalEarnings: 0,
     completedGigs: 0,
@@ -67,6 +68,12 @@ const Dashboard = () => {
       try {
         const madeOffers = await offerService.getOffersMade(userProfile.uid);
         console.log("✅ Offers made by user:", madeOffers);
+        console.log("📊 Offers made breakdown:", {
+          total: madeOffers.length,
+          pending: madeOffers.filter(o => o.status === 'pending').length,
+          accepted: madeOffers.filter(o => o.status === 'accepted').length,
+          rejected: madeOffers.filter(o => o.status === 'rejected').length
+        });
         setOffersMade(madeOffers);
       } catch (offersError) {
         console.error("❌ Error fetching offers made:", offersError);
@@ -78,6 +85,12 @@ const Dashboard = () => {
       try {
         const receivedOffers = await offerService.getOffersReceived(userProfile.uid);
         console.log("✅ Offers received by user:", receivedOffers);
+        console.log("📊 Offers received breakdown:", {
+          total: receivedOffers.length,
+          pending: receivedOffers.filter(o => o.status === 'pending').length,
+          accepted: receivedOffers.filter(o => o.status === 'accepted').length,
+          rejected: receivedOffers.filter(o => o.status === 'rejected').length
+        });
         setOffersReceived(receivedOffers);
       } catch (receivedError) {
         console.error("❌ Error fetching offers received:", receivedError);
@@ -131,6 +144,72 @@ const Dashboard = () => {
       }
     } finally {
       setLoading(false);
+    }
+  };
+
+  // Handle accepting an offer
+  const handleAcceptOffer = async (offer: Offer) => {
+    if (!userProfile) return;
+
+    setProcessingOfferId(offer.id);
+    try {
+      console.log("🔄 Accepting offer:", offer.id);
+
+      // Update offer status
+      await offerService.updateOfferStatus(offer.id, 'accepted');
+
+      // Update local state
+      setOffersReceived(prev => prev.map(o =>
+        o.id === offer.id ? { ...o, status: 'accepted' } : o
+      ));
+
+      toast({
+        title: "Offer Accepted!",
+        description: `You've accepted ${offer.offeredByName}'s offer. You can contact them through the Gig Chats section.`,
+      });
+
+      console.log("✅ Offer accepted successfully");
+    } catch (error) {
+      console.error("❌ Error accepting offer:", error);
+      toast({
+        title: "Error",
+        description: "Failed to accept offer. Please try again.",
+        variant: "destructive"
+      });
+    } finally {
+      setProcessingOfferId(null);
+    }
+  };
+
+  // Handle rejecting an offer
+  const handleRejectOffer = async (offer: Offer) => {
+    setProcessingOfferId(offer.id);
+    try {
+      console.log("🔄 Rejecting offer:", offer.id);
+
+      // Update offer status
+      await offerService.updateOfferStatus(offer.id, 'rejected');
+
+      // Update local state
+      setOffersReceived(prev => prev.map(o =>
+        o.id === offer.id ? { ...o, status: 'rejected' } : o
+      ));
+
+      toast({
+        title: "Offer Rejected",
+        description: `You've rejected ${offer.offeredByName}'s offer.`,
+      });
+
+      console.log("✅ Offer rejected successfully");
+    } catch (error) {
+      console.error("❌ Error rejecting offer:", error);
+      toast({
+        title: "Error",
+        description: "Failed to reject offer. Please try again.",
+        variant: "destructive"
+      });
+    } finally {
+      setProcessingOfferId(null);
     }
   };
 
@@ -539,10 +618,28 @@ const Dashboard = () => {
                           <div className="text-sm text-gray-500 mt-1">Proposed Budget</div>
                           {offer.status === 'pending' && (
                             <div className="flex gap-2 mt-2">
-                              <Button size="sm" variant="outline" className="text-green-600 border-green-600">
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                className="text-green-600 border-green-600 hover:bg-green-50"
+                                onClick={() => handleAcceptOffer(offer)}
+                                disabled={processingOfferId === offer.id}
+                              >
+                                {processingOfferId === offer.id ? (
+                                  <Loader2 className="w-3 h-3 animate-spin mr-1" />
+                                ) : null}
                                 Accept
                               </Button>
-                              <Button size="sm" variant="outline" className="text-red-600 border-red-600">
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                className="text-red-600 border-red-600 hover:bg-red-50"
+                                onClick={() => handleRejectOffer(offer)}
+                                disabled={processingOfferId === offer.id}
+                              >
+                                {processingOfferId === offer.id ? (
+                                  <Loader2 className="w-3 h-3 animate-spin mr-1" />
+                                ) : null}
                                 Reject
                               </Button>
                             </div>

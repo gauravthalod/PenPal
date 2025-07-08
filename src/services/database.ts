@@ -162,18 +162,26 @@ export const gigService = {
     }
   },
 
-  // Get all gigs (for testing)
-  async getAllGigs(limitCount = 20) {
+  // Get all gigs (regardless of college)
+  async getAllGigs(limitCount = 50) {
     try {
-      console.log("Getting all gigs...");
+      console.log("🌍 Getting all gigs from all colleges...");
       const gigsRef = collection(db, COLLECTIONS.GIGS);
-      const q = query(gigsRef, limit(limitCount));
+
+      // Get more gigs initially to account for filtering
+      const q = query(gigsRef, limit(limitCount * 2));
 
       const querySnapshot = await getDocs(q);
-      console.log("All gigs query snapshot size:", querySnapshot.size);
+      console.log("📊 All gigs query snapshot size:", querySnapshot.size);
 
       const gigs = querySnapshot.docs.map(doc => {
         const data = doc.data();
+        console.log("📋 Processing gig:", doc.id, {
+          title: data.title,
+          college: data.college,
+          status: data.status,
+          postedBy: data.postedByName
+        });
         return {
           id: doc.id,
           ...data,
@@ -183,10 +191,17 @@ export const gigService = {
         };
       }) as Gig[];
 
-      console.log("All gigs:", gigs);
-      return gigs;
+      // Filter only by status (open) and sort by creation date
+      const filteredGigs = gigs
+        .filter(gig => gig.status === 'open')
+        .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())
+        .slice(0, limitCount);
+
+      console.log("✅ Filtered gigs (all colleges):", filteredGigs.length);
+      console.log("🎯 Gigs from colleges:", [...new Set(filteredGigs.map(g => g.college))]);
+      return filteredGigs;
     } catch (error) {
-      console.error("Error in getAllGigs:", error);
+      console.error("❌ Error in getAllGigs:", error);
       throw error;
     }
   },
