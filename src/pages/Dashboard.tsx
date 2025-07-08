@@ -12,6 +12,7 @@ import EditOfferDialog from "@/components/EditOfferDialog";
 import DeleteOfferDialog from "@/components/DeleteOfferDialog";
 import { useAuth } from "@/contexts/AuthContext";
 import { gigService, offerService, Gig, Offer } from "@/services/database";
+import { chatService } from "@/services/chatService";
 import { useToast } from "@/hooks/use-toast";
 
 // Enhanced interfaces for dashboard data
@@ -201,6 +202,21 @@ const Dashboard = () => {
       // Update offer status
       await offerService.updateOfferStatus(offer.id, 'accepted');
 
+      // Create chat between gig poster and offer maker
+      console.log("💬 Creating chat between poster and doer...");
+      const chat = await chatService.createChat({
+        participants: [userProfile.uid, offer.offeredBy],
+        participantNames: [
+          `${userProfile.firstName} ${userProfile.lastName}`.trim(),
+          offer.offeredByName
+        ],
+        gigId: offer.gigId,
+        gigTitle: offer.gigTitle,
+        offerId: offer.id
+      });
+
+      console.log("✅ Chat created successfully:", chat.id);
+
       // Update local state
       setOffersReceived(prev => prev.map(o =>
         o.id === offer.id ? { ...o, status: 'accepted' } : o
@@ -208,7 +224,7 @@ const Dashboard = () => {
 
       toast({
         title: "Offer Accepted!",
-        description: `You've accepted ${offer.offeredByName}'s offer. You can contact them through the Gig Chats section.`,
+        description: `You've accepted ${offer.offeredByName}'s offer. A chat has been created for you to discuss details.`,
       });
 
       console.log("✅ Offer accepted successfully");
