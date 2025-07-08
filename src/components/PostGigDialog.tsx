@@ -163,9 +163,19 @@ const PostGigDialog = ({ open, onOpenChange, onSubmit }: PostGigDialogProps) => 
       const createdGig = await gigService.createGig(gigData);
       console.log("✅ Gig created successfully:", createdGig);
 
+      // Set flag to trigger dashboard refresh
+      localStorage.setItem('gigPosted', 'true');
+      console.log("🔄 Set gigPosted flag for dashboard refresh");
+
+      // Dispatch custom event for immediate dashboard refresh
+      window.dispatchEvent(new CustomEvent('gigPosted', {
+        detail: { gig: createdGig }
+      }));
+      console.log("📡 Dispatched gigPosted event for immediate refresh");
+
       toast({
         title: "Gig Posted Successfully!",
-        description: `Your gig "${formData.gigName}" has been posted and is now visible to other students. Refresh the page to see it in the list.`,
+        description: `Your gig "${formData.gigName}" has been posted and will appear in your dashboard.`,
       });
 
       // Call onSubmit if provided (for any additional handling)

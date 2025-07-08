@@ -1,11 +1,13 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { ArrowLeft, CheckCircle, Clock, DollarSign, Calendar, User, Star, MessageSquare, Loader2 } from "lucide-react";
+import { ArrowLeft, CheckCircle, Clock, DollarSign, Calendar, User, Star, MessageSquare, Loader2, RefreshCw, Edit, Trash2 } from "lucide-react";
 import Header from "@/components/Header";
+import EditGigDialog from "@/components/EditGigDialog";
+import DeleteGigDialog from "@/components/DeleteGigDialog";
 import { useAuth } from "@/contexts/AuthContext";
 import { gigService, offerService, Gig, Offer } from "@/services/database";
 import { useToast } from "@/hooks/use-toast";
@@ -31,6 +33,16 @@ const Dashboard = () => {
   const [offersReceived, setOffersReceived] = useState<Offer[]>([]);
   const [loading, setLoading] = useState(true);
   const [processingOfferId, setProcessingOfferId] = useState<string | null>(null);
+
+  // State for edit/delete dialogs
+  const [editGigDialog, setEditGigDialog] = useState<{ open: boolean; gig: Gig | null }>({
+    open: false,
+    gig: null
+  });
+  const [deleteGigDialog, setDeleteGigDialog] = useState<{ open: boolean; gig: Gig | null }>({
+    open: false,
+    gig: null
+  });
   const [stats, setStats] = useState<DashboardStats>({
     totalEarnings: 0,
     completedGigs: 0,
@@ -54,9 +66,30 @@ const Dashboard = () => {
 
       // Fetch user's posted gigs
       console.log("📋 Fetching user's posted gigs...");
+      console.log("🔍 User ID for gig fetch:", userProfile.uid);
+      console.log("🔍 User profile:", {
+        uid: userProfile.uid,
+        name: `${userProfile.firstName} ${userProfile.lastName}`,
+        college: userProfile.college
+      });
       try {
         const userGigs = await gigService.getUserGigs(userProfile.uid);
-        console.log("✅ User posted gigs:", userGigs);
+        console.log("✅ User posted gigs fetched successfully!");
+        console.log("📊 Posted gigs breakdown:", {
+          total: userGigs.length,
+          gigIds: userGigs.map(g => g.id),
+          gigTitles: userGigs.map(g => g.title),
+          postedByValues: userGigs.map(g => g.postedBy),
+          statuses: userGigs.map(g => g.status)
+        });
+
+        if (userGigs.length === 0) {
+          console.log("ℹ️ No gigs found for user. This could mean:");
+          console.log("   - User hasn't posted any gigs yet");
+          console.log("   - Database query issue");
+          console.log("   - User ID mismatch");
+        }
+
         setPostedGigs(userGigs);
       } catch (gigsError) {
         console.error("❌ Error fetching user gigs:", gigsError);
@@ -218,6 +251,41 @@ const Dashboard = () => {
     fetchDashboardData();
   }, [userProfile?.uid]);
 
+  // Listen for gig posted events to refresh dashboard immediately
+  useEffect(() => {
+    const handleGigPosted = (e: CustomEvent) => {
+      console.log("🔄 Detected new gig posted via event, refreshing dashboard...");
+      console.log("📋 New gig details:", e.detail?.gig);
+      fetchDashboardData();
+    };
+
+    const handleStorageChange = (e: StorageEvent) => {
+      if (e.key === 'gigPosted' && e.newValue) {
+        console.log("🔄 Detected new gig posted via storage, refreshing dashboard...");
+        fetchDashboardData();
+        // Clear the flag
+        localStorage.removeItem('gigPosted');
+      }
+    };
+
+    // Listen for custom event (same tab)
+    window.addEventListener('gigPosted', handleGigPosted as EventListener);
+    // Listen for storage changes (different tabs)
+    window.addEventListener('storage', handleStorageChange);
+
+    // Also check for the flag on component mount
+    if (localStorage.getItem('gigPosted')) {
+      console.log("🔄 Found gigPosted flag on mount, refreshing dashboard...");
+      fetchDashboardData();
+      localStorage.removeItem('gigPosted');
+    }
+
+    return () => {
+      window.removeEventListener('gigPosted', handleGigPosted as EventListener);
+      window.removeEventListener('storage', handleStorageChange);
+    };
+  }, []);
+
   // Test Firebase connection
   const testFirebaseConnection = async () => {
     if (!userProfile?.uid) {
@@ -265,8 +333,176 @@ const Dashboard = () => {
     }
   };
 
+  // Handle edit gig
+  const handleEditGig = (gig: Gig) => {
+    console.log("✏️ Opening edit dialog for gig:", gig.id);
+    setEditGigDialog({ open: true, gig });
+  };
+
+  // Handle delete gig
+  const handleDeleteGig = (gig: Gig) => {
+    console.log("🗑️ Opening delete dialog for gig:", gig.id);
+    setDeleteGigDialog({ open: true, gig });
+  };
+
+  // Handle gig updated
+  const handleGigUpdated = (updatedGig: Gig) => {
+    console.log("✅ Gig updated, refreshing dashboard...");
+    setPostedGigs(prev => prev.map(gig =>
+      gig.id === updatedGig.id ? updatedGig : gig
+    ));
+
+    toast({
+      title: "Dashboard Updated",
+      description: "Your gig changes are now visible.",
+    });
+  };
+
+  // Handle gig deleted
+  const handleGigDeleted = (gigId: string) => {
+    console.log("✅ Gig deleted, refreshing dashboard...");
+    setPostedGigs(prev => prev.filter(gig => gig.id !== gigId));
+
+    toast({
+      title: "Dashboard Updated",
+      description: "The deleted gig has been removed from your dashboard.",
+    });
+  };
+
   const handleBack = () => {
     navigate("/");
+  };
+
+  // Debug function to check why gigs aren't appearing
+  const debugDashboardData = async () => {
+    if (!userProfile) {
+      console.log("❌ No user profile available for debugging");
+      toast({
+        title: "Debug Error",
+        description: "Please login first",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    console.log("🔍 DEBUGGING DASHBOARD DATA");
+    console.log("=".repeat(50));
+
+    try {
+      // Check user profile
+      console.log("👤 Current User Profile:");
+      console.log("   UID:", userProfile.uid);
+      console.log("   Name:", `${userProfile.firstName} ${userProfile.lastName}`);
+      console.log("   College:", userProfile.college);
+      console.log("   Email:", userProfile.email);
+
+      // Check Firebase connection
+      const { collection, getDocs, query, where } = await import('firebase/firestore');
+      const { db } = await import('@/lib/firebase');
+
+      // Check all gigs in database
+      console.log("\n📋 ALL GIGS IN DATABASE:");
+      const allGigsRef = collection(db, 'gigs');
+      const allGigsSnapshot = await getDocs(allGigsRef);
+      console.log(`   Total gigs in database: ${allGigsSnapshot.size}`);
+
+      allGigsSnapshot.docs.forEach((doc, index) => {
+        const data = doc.data();
+        console.log(`   Gig ${index + 1}:`, {
+          id: doc.id,
+          title: data.title,
+          postedBy: data.postedBy,
+          postedByName: data.postedByName,
+          status: data.status,
+          college: data.college
+        });
+      });
+
+      // Check gigs for current user specifically
+      console.log("\n🎯 GIGS FOR CURRENT USER:");
+      const userGigsRef = collection(db, 'gigs');
+      const userGigsQuery = query(userGigsRef, where('postedBy', '==', userProfile.uid));
+      const userGigsSnapshot = await getDocs(userGigsQuery);
+      console.log(`   Gigs posted by current user: ${userGigsSnapshot.size}`);
+
+      userGigsSnapshot.docs.forEach((doc, index) => {
+        const data = doc.data();
+        console.log(`   User Gig ${index + 1}:`, {
+          id: doc.id,
+          title: data.title,
+          postedBy: data.postedBy,
+          status: data.status,
+          createdAt: data.createdAt?.toDate?.()?.toISOString() || 'No date'
+        });
+      });
+
+      // Check current dashboard state
+      console.log("\n📊 CURRENT DASHBOARD STATE:");
+      console.log("   Posted Gigs in state:", postedGigs.length);
+      console.log("   Offers Made in state:", offersMade.length);
+      console.log("   Offers Received in state:", offersReceived.length);
+      console.log("   Loading state:", loading);
+
+      toast({
+        title: "Debug Complete",
+        description: `Found ${allGigsSnapshot.size} total gigs, ${userGigsSnapshot.size} for current user. Check console for details.`,
+      });
+
+    } catch (error) {
+      console.error("❌ Debug failed:", error);
+      toast({
+        title: "Debug Failed",
+        description: "Check console for error details",
+        variant: "destructive"
+      });
+    }
+  };
+
+  // Test gig creation
+  const testGigCreation = async () => {
+    if (!userProfile) {
+      toast({
+        title: "Error",
+        description: "Please login first",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    console.log("🧪 Testing gig creation...");
+    try {
+      const testGigData = {
+        title: `Test Dashboard Gig ${Date.now()}`,
+        description: "This is a test gig to verify dashboard visibility",
+        category: "Academic",
+        budget: 500,
+        deadline: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
+        location: "Campus",
+        college: userProfile.college,
+        postedBy: userProfile.uid,
+        postedByName: `${userProfile.firstName} ${userProfile.lastName}`.trim(),
+        status: 'open' as const
+      };
+
+      console.log("🚀 Creating test gig:", testGigData);
+      const createdGig = await gigService.createGig(testGigData);
+      console.log("✅ Test gig created:", createdGig);
+
+      // Refresh dashboard data
+      await fetchDashboardData();
+
+      toast({
+        title: "Test Gig Created!",
+        description: "Check the 'Gigs Posted' tab to see your test gig",
+      });
+    } catch (error) {
+      console.error("❌ Test gig creation failed:", error);
+      toast({
+        title: "Test Failed",
+        description: "Check console for error details",
+        variant: "destructive"
+      });
+    }
   };
 
   const getStatusColor = (status: string) => {
@@ -360,15 +596,33 @@ const Dashboard = () => {
           </Button>
           <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">My Dashboard</h1>
 
-          {/* Debug button - remove in production */}
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={testFirebaseConnection}
-            className="text-xs ml-auto"
-          >
-            Test Firebase
-          </Button>
+          {/* Debug buttons - remove in production */}
+          <div className="flex gap-2 ml-auto">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={debugDashboardData}
+              className="text-xs"
+            >
+              Debug Dashboard
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={testGigCreation}
+              className="text-xs"
+            >
+              Test Gig Creation
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={testFirebaseConnection}
+              className="text-xs"
+            >
+              Test Firebase
+            </Button>
+          </div>
         </div>
 
         {/* Stats Cards */}
@@ -558,6 +812,28 @@ const Dashboard = () => {
                           <Badge variant="outline" className="mt-1">{gig.category}</Badge>
                         </div>
                       </div>
+
+                      {/* Edit and Delete buttons */}
+                      <div className="flex gap-2 pt-4 border-t">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleEditGig(gig)}
+                          className="flex items-center gap-2 flex-1"
+                        >
+                          <Edit className="w-4 h-4" />
+                          Edit
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleDeleteGig(gig)}
+                          className="flex items-center gap-2 flex-1 text-red-600 border-red-200 hover:bg-red-50"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                          Delete
+                        </Button>
+                      </div>
                     </CardContent>
                   </Card>
                 ))}
@@ -654,6 +930,22 @@ const Dashboard = () => {
           </TabsContent>
         </Tabs>
       </div>
+
+      {/* Edit Gig Dialog */}
+      <EditGigDialog
+        gig={editGigDialog.gig}
+        open={editGigDialog.open}
+        onOpenChange={(open) => setEditGigDialog({ open, gig: open ? editGigDialog.gig : null })}
+        onGigUpdated={handleGigUpdated}
+      />
+
+      {/* Delete Gig Dialog */}
+      <DeleteGigDialog
+        gig={deleteGigDialog.gig}
+        open={deleteGigDialog.open}
+        onOpenChange={(open) => setDeleteGigDialog({ open, gig: open ? deleteGigDialog.gig : null })}
+        onGigDeleted={handleGigDeleted}
+      />
     </div>
   );
 };

@@ -241,13 +241,15 @@ export const gigService = {
     try {
       console.log("🔍 Getting gigs for user:", userId);
       const gigsRef = collection(db, COLLECTIONS.GIGS);
+      // Simplified query without orderBy to avoid index requirement
       const q = query(
         gigsRef,
-        where('postedBy', '==', userId),
-        orderBy('createdAt', 'desc')
+        where('postedBy', '==', userId)
       );
 
       const querySnapshot = await getDocs(q);
+      console.log("✅ User gigs query successful, size:", querySnapshot.size);
+
       const gigs = querySnapshot.docs.map(doc => {
         const data = doc.data();
         return {
@@ -259,10 +261,48 @@ export const gigService = {
         };
       }) as Gig[];
 
+      // Sort client-side instead of server-side to avoid index requirement
+      gigs.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
+
       console.log(`✅ Found ${gigs.length} gigs for user ${userId}`);
       return gigs;
     } catch (error) {
       console.error("❌ Error in getUserGigs:", error);
+      throw error;
+    }
+  },
+
+  // Update a gig
+  async updateGig(gigId: string, updateData: Partial<Gig>) {
+    try {
+      console.log("🔄 Updating gig:", gigId, updateData);
+      const gigRef = doc(db, COLLECTIONS.GIGS, gigId);
+
+      const updatePayload = {
+        ...updateData,
+        updatedAt: Timestamp.now()
+      };
+
+      await updateDoc(gigRef, updatePayload);
+      console.log("✅ Gig updated successfully");
+
+      return { id: gigId, ...updatePayload };
+    } catch (error) {
+      console.error("❌ Error updating gig:", error);
+      throw error;
+    }
+  },
+
+  // Delete a gig
+  async deleteGig(gigId: string) {
+    try {
+      console.log("🗑️ Deleting gig:", gigId);
+      const gigRef = doc(db, COLLECTIONS.GIGS, gigId);
+      await deleteDoc(gigRef);
+      console.log("✅ Gig deleted successfully");
+      return true;
+    } catch (error) {
+      console.error("❌ Error deleting gig:", error);
       throw error;
     }
   }
@@ -320,10 +360,10 @@ export const offerService = {
     try {
       console.log("🔍 Getting offers received for user:", userId);
       const offersRef = collection(db, COLLECTIONS.OFFERS);
+      // Simplified query without orderBy to avoid index requirement
       const q = query(
         offersRef,
-        where('gigPostedBy', '==', userId),
-        orderBy('createdAt', 'desc')
+        where('gigPostedBy', '==', userId)
       );
 
       const querySnapshot = await getDocs(q);
@@ -336,6 +376,9 @@ export const offerService = {
           updatedAt: data.updatedAt?.toDate() || new Date()
         };
       }) as Offer[];
+
+      // Sort client-side to avoid index requirement
+      offers.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
 
       console.log(`✅ Found ${offers.length} offers received for user ${userId}`);
       return offers;
@@ -350,10 +393,10 @@ export const offerService = {
     try {
       console.log("🔍 Getting offers made by user:", userId);
       const offersRef = collection(db, COLLECTIONS.OFFERS);
+      // Simplified query without orderBy to avoid index requirement
       const q = query(
         offersRef,
-        where('offeredBy', '==', userId),
-        orderBy('createdAt', 'desc')
+        where('offeredBy', '==', userId)
       );
 
       const querySnapshot = await getDocs(q);
@@ -366,6 +409,9 @@ export const offerService = {
           updatedAt: data.updatedAt?.toDate() || new Date()
         };
       }) as Offer[];
+
+      // Sort client-side to avoid index requirement
+      offers.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
 
       console.log(`✅ Found ${offers.length} offers made by user ${userId}`);
       return offers;
