@@ -129,25 +129,45 @@ const ProfileForm = ({
     }
   };
 
-  const handleSave = () => {
-    // Prepare data for saving
-    const updatedData = {
-      firstName: profileData.firstName,
-      lastName: profileData.lastName,
-      college: profileData.college,
-      year: profileData.year,
-      branch: profileData.branch,
-      rollNumber: profileData.rollNumber,
-      phone: profileData.phone,
-      bio: profileData.bio
-    };
+  const handleSave = async () => {
+    // Validate required fields
+    if (!profileData.firstName || !profileData.lastName || !profileData.college) {
+      toast({
+        title: "Validation Error",
+        description: "Please fill in all required fields (First Name, Last Name, College).",
+        variant: "destructive"
+      });
+      return;
+    }
 
-    onSave(updatedData);
+    try {
+      // Prepare data for saving
+      const updatedData = {
+        firstName: profileData.firstName.trim(),
+        lastName: profileData.lastName.trim(),
+        college: profileData.college.trim(),
+        year: profileData.year.trim(),
+        branch: profileData.branch.trim(),
+        rollNumber: profileData.rollNumber.trim(),
+        phone: profileData.phone.trim(),
+        bio: profileData.bio?.trim() || ''
+      };
 
-    toast({
-      title: "Profile Updated",
-      description: "Your profile has been successfully updated.",
-    });
+      console.log('🔄 Saving profile data:', updatedData);
+      await onSave(updatedData);
+
+      toast({
+        title: "Profile Updated",
+        description: "Your profile has been successfully updated.",
+      });
+    } catch (error) {
+      console.error('❌ Error saving profile:', error);
+      toast({
+        title: "Save Failed",
+        description: "Failed to save profile. Please try again.",
+        variant: "destructive"
+      });
+    }
   };
 
   const handleLogout = async () => {

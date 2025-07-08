@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -6,33 +6,34 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { 
-  Shield, 
-  Users, 
-  AlertTriangle, 
-  Ban, 
-  Eye, 
-  Search, 
+import {
+  Shield,
+  Users,
+  AlertTriangle,
+  Ban,
+  Eye,
+  Search,
   Filter,
   UserX,
   CheckCircle,
   XCircle,
   Clock,
-  ArrowLeft
+  ArrowLeft,
+  Trash2,
+  RefreshCw,
+  Loader2,
+  FileText
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { adminService, Gig } from "@/services/database";
+import { UserProfile } from "@/contexts/AuthContext";
+import { testAdminFunctionality } from "@/utils/testAdmin";
 
-interface User {
+interface AdminUser extends UserProfile {
   id: string;
-  username: string;
-  email: string;
-  college: string;
-  joinDate: string;
-  status: "active" | "banned" | "suspended";
-  reportCount: number;
-  gigCount: number;
-  rating: number;
-  lastActive: string;
+  gigCount?: number;
+  offerCount?: number;
+  status?: "active" | "banned" | "suspended";
 }
 
 interface Report {
@@ -49,172 +50,201 @@ interface Report {
 const AdminDashboard = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
-  
+
   const [searchTerm, setSearchTerm] = useState("");
   const [filterStatus, setFilterStatus] = useState("all");
+  const [users, setUsers] = useState<AdminUser[]>([]);
+  const [gigs, setGigs] = useState<Gig[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [usersLoading, setUsersLoading] = useState(false);
+  const [gigsLoading, setGigsLoading] = useState(false);
 
-  // Mock user data
-  const [users, setUsers] = useState<User[]>([
-    {
-      id: "user_001",
-      username: "anon_47",
-      email: "student1@cmrec.ac.in",
-      college: "CMREC",
-      joinDate: "2024-01-10",
-      status: "active",
-      reportCount: 0,
-      gigCount: 5,
-      rating: 4.8,
-      lastActive: "2024-01-20"
-    },
-    {
-      id: "user_002", 
-      username: "anon_99",
-      email: "student2@cmrit.ac.in",
-      college: "CMRIT",
-      joinDate: "2024-01-12",
-      status: "active",
-      reportCount: 1,
-      gigCount: 3,
-      rating: 4.2,
-      lastActive: "2024-01-19"
-    },
-    {
-      id: "user_003",
-      username: "spam_user",
-      email: "spammer@cmrec.ac.in", 
-      college: "CMREC",
-      joinDate: "2024-01-15",
-      status: "suspended",
-      reportCount: 5,
-      gigCount: 0,
-      rating: 2.1,
-      lastActive: "2024-01-18"
-    },
-    {
-      id: "user_004",
-      username: "anon_12",
-      email: "student3@cmrtc.ac.in",
-      college: "CMRTC", 
-      joinDate: "2024-01-08",
-      status: "active",
-      reportCount: 0,
-      gigCount: 8,
-      rating: 4.9,
-      lastActive: "2024-01-20"
-    },
-    {
-      id: "user_005",
-      username: "banned_user",
-      email: "violator@cmrcet.ac.in",
-      college: "CMRCET",
-      joinDate: "2024-01-05",
-      status: "banned",
-      reportCount: 12,
-      gigCount: 2,
-      rating: 1.5,
-      lastActive: "2024-01-16"
+  // Fetch users from Firebase
+  const fetchUsers = async () => {
+    try {
+      setUsersLoading(true);
+      console.log("Admin: Fetching users from Firebase...");
+      const fetchedUsers = await adminService.getAllUsers();
+
+      // Enhance users with additional stats
+      const enhancedUsers = await Promise.all(
+        fetchedUsers.map(async (user) => {
+          try {
+            const stats = await adminService.getUserStats(user.id);
+            return {
+              ...user,
+              gigCount: stats.totalGigs,
+              offerCount: stats.totalOffers,
+              status: "active" as const // Default status, can be enhanced later
+            };
+          } catch (error) {
+            console.warn(`Failed to get stats for user ${user.id}:`, error);
+            return {
+              ...user,
+              gigCount: 0,
+              offerCount: 0,
+              status: "active" as const
+            };
+          }
+        })
+      );
+
+      setUsers(enhancedUsers);
+      console.log(`Admin: Loaded ${enhancedUsers.length} users`);
+    } catch (error) {
+      console.error("Admin: Error fetching users:", error);
+      toast({
+        title: "Error Loading Users",
+        description: "Failed to load user data from Firebase",
+        variant: "destructive"
+      });
+    } finally {
+      setUsersLoading(false);
     }
-  ]);
+  };
 
-  // Mock reports data
-  const [reports, setReports] = useState<Report[]>([
-    {
-      id: "report_001",
-      reportedUser: "spam_user",
-      reportedBy: "anon_47",
-      reason: "Spam/Inappropriate Content",
-      description: "User is posting irrelevant content in group chat and sending spam messages",
-      date: "2024-01-19",
-      status: "pending",
-      severity: "high"
-    },
-    {
-      id: "report_002",
-      reportedUser: "anon_99", 
-      reportedBy: "anon_12",
-      reason: "Payment Issues",
-      description: "User didn't pay for completed gig work",
-      date: "2024-01-18",
-      status: "pending",
-      severity: "medium"
-    },
-    {
-      id: "report_003",
-      reportedUser: "banned_user",
-      reportedBy: "anon_47",
-      reason: "Harassment",
-      description: "User sent inappropriate messages and was harassing other students",
-      date: "2024-01-16",
-      status: "resolved",
-      severity: "high"
+  // Fetch gigs from Firebase
+  const fetchGigs = async () => {
+    try {
+      setGigsLoading(true);
+      console.log("Admin: Fetching gigs from Firebase...");
+      const fetchedGigs = await adminService.getAllGigs();
+      setGigs(fetchedGigs);
+      console.log(`Admin: Loaded ${fetchedGigs.length} gigs`);
+    } catch (error) {
+      console.error("Admin: Error fetching gigs:", error);
+      toast({
+        title: "Error Loading Gigs",
+        description: "Failed to load gig data from Firebase",
+        variant: "destructive"
+      });
+    } finally {
+      setGigsLoading(false);
     }
-  ]);
+  };
 
-  const handleBanUser = (userId: string) => {
-    setUsers(users.map(user => 
-      user.id === userId 
-        ? { ...user, status: "banned" as const }
-        : user
-    ));
-    
+  // Load data on component mount
+  useEffect(() => {
+    const loadData = async () => {
+      setLoading(true);
+      await Promise.all([fetchUsers(), fetchGigs()]);
+      setLoading(false);
+    };
+
+    loadData();
+  }, []);
+
+  // Mock reports data (can be enhanced later with real reporting system)
+  const [reports, setReports] = useState<Report[]>([]);
+
+  // Delete user and all associated data
+  const handleDeleteUser = async (userId: string) => {
+    const user = users.find(u => u.id === userId);
+    if (!user) return;
+
+    if (!confirm(`Are you sure you want to permanently delete ${user.firstName} ${user.lastName} and ALL their data? This action cannot be undone.`)) {
+      return;
+    }
+
+    try {
+      setUsersLoading(true);
+      console.log(`Admin: Deleting user ${userId}...`);
+
+      const result = await adminService.deleteUser(userId);
+
+      // Remove user from local state
+      setUsers(users.filter(u => u.id !== userId));
+
+      // Refresh gigs list to remove deleted user's gigs
+      await fetchGigs();
+
+      toast({
+        title: "User Deleted Successfully",
+        description: `Deleted user and ${result.deletedGigs} gigs, ${result.deletedOffers} offers, ${result.deletedChats} chats`,
+        variant: "destructive"
+      });
+    } catch (error) {
+      console.error("Admin: Error deleting user:", error);
+      toast({
+        title: "Error Deleting User",
+        description: "Failed to delete user. Please try again.",
+        variant: "destructive"
+      });
+    } finally {
+      setUsersLoading(false);
+    }
+  };
+
+  // Delete gig
+  const handleDeleteGig = async (gigId: string) => {
+    const gig = gigs.find(g => g.id === gigId);
+    if (!gig) return;
+
+    if (!confirm(`Are you sure you want to permanently delete the gig "${gig.title}"? This action cannot be undone.`)) {
+      return;
+    }
+
+    try {
+      setGigsLoading(true);
+      console.log(`Admin: Deleting gig ${gigId}...`);
+
+      const result = await adminService.deleteGig(gigId);
+
+      // Remove gig from local state
+      setGigs(gigs.filter(g => g.id !== gigId));
+
+      toast({
+        title: "Gig Deleted Successfully",
+        description: `Deleted gig and ${result.deletedOffers} offers, ${result.deletedChats} chats`,
+        variant: "destructive"
+      });
+    } catch (error) {
+      console.error("Admin: Error deleting gig:", error);
+      toast({
+        title: "Error Deleting Gig",
+        description: "Failed to delete gig. Please try again.",
+        variant: "destructive"
+      });
+    } finally {
+      setGigsLoading(false);
+    }
+  };
+
+  // Refresh data
+  const handleRefreshData = async () => {
+    setLoading(true);
+    await Promise.all([fetchUsers(), fetchGigs()]);
+    setLoading(false);
+
     toast({
-      title: "User Banned",
-      description: "User has been banned from the platform",
-      variant: "destructive"
+      title: "Data Refreshed",
+      description: "All data has been reloaded from Firebase"
     });
   };
 
-  const handleSuspendUser = (userId: string) => {
-    setUsers(users.map(user => 
-      user.id === userId 
-        ? { ...user, status: "suspended" as const }
-        : user
-    ));
-    
-    toast({
-      title: "User Suspended", 
-      description: "User has been temporarily suspended",
-    });
-  };
-
-  const handleUnbanUser = (userId: string) => {
-    setUsers(users.map(user => 
-      user.id === userId 
-        ? { ...user, status: "active" as const }
-        : user
-    ));
-    
-    toast({
-      title: "User Unbanned",
-      description: "User has been restored to active status",
-    });
-  };
-
-  const handleResolveReport = (reportId: string) => {
-    setReports(reports.map(report => 
-      report.id === reportId 
-        ? { ...report, status: "resolved" as const }
-        : report
-    ));
-    
-    toast({
-      title: "Report Resolved",
-      description: "Report has been marked as resolved",
-    });
-  };
-
-  const handleDismissReport = (reportId: string) => {
-    setReports(reports.map(report => 
-      report.id === reportId 
-        ? { ...report, status: "dismissed" as const }
-        : report
-    ));
-    
-    toast({
-      title: "Report Dismissed",
-      description: "Report has been dismissed",
-    });
+  // Test admin functionality
+  const handleTestAdmin = async () => {
+    try {
+      const result = await testAdminFunctionality();
+      if (result.success) {
+        toast({
+          title: "Admin Test Successful",
+          description: `Found ${result.usersCount} users and ${result.gigsCount} gigs`
+        });
+      } else {
+        toast({
+          title: "Admin Test Failed",
+          description: result.error,
+          variant: "destructive"
+        });
+      }
+    } catch (error) {
+      toast({
+        title: "Test Error",
+        description: "Failed to run admin tests",
+        variant: "destructive"
+      });
+    }
   };
 
   const getStatusColor = (status: string) => {
@@ -222,32 +252,33 @@ const AdminDashboard = () => {
       case "active": return "bg-green-500";
       case "suspended": return "bg-yellow-500";
       case "banned": return "bg-red-500";
-      case "pending": return "bg-orange-500";
-      case "resolved": return "bg-green-500";
-      case "dismissed": return "bg-gray-500";
-      default: return "bg-gray-500";
-    }
-  };
-
-  const getSeverityColor = (severity: string) => {
-    switch (severity) {
-      case "high": return "bg-red-500";
-      case "medium": return "bg-yellow-500";
-      case "low": return "bg-blue-500";
+      case "open": return "bg-blue-500";
+      case "in_progress": return "bg-yellow-500";
+      case "completed": return "bg-green-500";
+      case "cancelled": return "bg-red-500";
       default: return "bg-gray-500";
     }
   };
 
   const filteredUsers = users.filter(user => {
-    const matchesSearch = user.username.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         user.email.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesSearch = (user.firstName + " " + user.lastName).toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         user.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         user.college.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesFilter = filterStatus === "all" || user.status === filterStatus;
     return matchesSearch && matchesFilter;
   });
 
+  const filteredGigs = gigs.filter(gig => {
+    return gig.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+           gig.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
+           gig.category.toLowerCase().includes(searchTerm.toLowerCase()) ||
+           gig.postedByName.toLowerCase().includes(searchTerm.toLowerCase());
+  });
+
   const pendingReports = reports.filter(report => report.status === "pending");
   const activeUsers = users.filter(user => user.status === "active").length;
-  const bannedUsers = users.filter(user => user.status === "banned").length;
+  const totalGigs = gigs.length;
+  const activeGigs = gigs.filter(gig => gig.status === "open").length;
   const suspendedUsers = users.filter(user => user.status === "suspended").length;
 
   return (
@@ -288,8 +319,22 @@ const AdminDashboard = () => {
                   <Users className="w-5 h-5 text-green-600" />
                 </div>
                 <div>
-                  <p className="text-sm text-gray-600">Active Users</p>
-                  <p className="text-xl font-bold text-green-600">{activeUsers}</p>
+                  <p className="text-sm text-gray-600">Total Users</p>
+                  <p className="text-xl font-bold text-green-600">{loading ? "..." : users.length}</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardContent className="p-4">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
+                  <FileText className="w-5 h-5 text-blue-600" />
+                </div>
+                <div>
+                  <p className="text-sm text-gray-600">Total Gigs</p>
+                  <p className="text-xl font-bold text-blue-600">{loading ? "..." : totalGigs}</p>
                 </div>
               </div>
             </CardContent>
@@ -302,8 +347,8 @@ const AdminDashboard = () => {
                   <Clock className="w-5 h-5 text-yellow-600" />
                 </div>
                 <div>
-                  <p className="text-sm text-gray-600">Suspended</p>
-                  <p className="text-xl font-bold text-yellow-600">{suspendedUsers}</p>
+                  <p className="text-sm text-gray-600">Active Gigs</p>
+                  <p className="text-xl font-bold text-yellow-600">{loading ? "..." : activeGigs}</p>
                 </div>
               </div>
             </CardContent>
@@ -312,26 +357,14 @@ const AdminDashboard = () => {
           <Card>
             <CardContent className="p-4">
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 bg-red-100 rounded-lg flex items-center justify-center">
-                  <Ban className="w-5 h-5 text-red-600" />
+                <div className="w-10 h-10 bg-purple-100 rounded-lg flex items-center justify-center">
+                  <RefreshCw className="w-5 h-5 text-purple-600" />
                 </div>
                 <div>
-                  <p className="text-sm text-gray-600">Banned Users</p>
-                  <p className="text-xl font-bold text-red-600">{bannedUsers}</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardContent className="p-4">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 bg-orange-100 rounded-lg flex items-center justify-center">
-                  <AlertTriangle className="w-5 h-5 text-orange-600" />
-                </div>
-                <div>
-                  <p className="text-sm text-gray-600">Pending Reports</p>
-                  <p className="text-xl font-bold text-orange-600">{pendingReports.length}</p>
+                  <p className="text-sm text-gray-600">Last Updated</p>
+                  <p className="text-sm font-medium text-purple-600">
+                    {loading ? "Loading..." : "Just now"}
+                  </p>
                 </div>
               </div>
             </CardContent>
@@ -339,9 +372,32 @@ const AdminDashboard = () => {
         </div>
 
         {/* Main Content */}
+        <div className="flex items-center justify-between mb-6">
+          <h2 className="text-2xl font-bold">Administration Panel</h2>
+          <div className="flex gap-2">
+            <Button
+              onClick={handleTestAdmin}
+              variant="outline"
+              disabled={loading}
+            >
+              <Eye className="w-4 h-4 mr-2" />
+              Test Admin
+            </Button>
+            <Button
+              onClick={handleRefreshData}
+              disabled={loading}
+              className="bg-blue-600 hover:bg-blue-700"
+            >
+              <RefreshCw className={`w-4 h-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
+              Refresh Data
+            </Button>
+          </div>
+        </div>
+
         <Tabs defaultValue="users" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-2">
+          <TabsList className="grid w-full grid-cols-3">
             <TabsTrigger value="users">User Management</TabsTrigger>
+            <TabsTrigger value="gigs">Gigs Management</TabsTrigger>
             <TabsTrigger value="reports">Reports & Moderation</TabsTrigger>
           </TabsList>
 
@@ -372,85 +428,180 @@ const AdminDashboard = () => {
               </div>
             </div>
 
-            <div className="grid gap-4">
-              {filteredUsers.map((user) => (
-                <Card key={user.id} className="hover:shadow-md transition-shadow">
-                  <CardContent className="p-6">
-                    <div className="flex justify-between items-start">
-                      <div className="flex-1">
-                        <div className="flex items-center gap-3 mb-2">
-                          <h3 className="text-lg font-semibold">@{user.username}</h3>
-                          <Badge className={`${getStatusColor(user.status)} text-white`}>
-                            {user.status.charAt(0).toUpperCase() + user.status.slice(1)}
-                          </Badge>
-                          {user.reportCount > 0 && (
-                            <Badge variant="destructive">
-                              {user.reportCount} reports
+            {usersLoading ? (
+              <div className="flex justify-center items-center py-12">
+                <Loader2 className="w-8 h-8 animate-spin text-blue-500" />
+                <span className="ml-2 text-gray-600">Loading users...</span>
+              </div>
+            ) : filteredUsers.length === 0 ? (
+              <div className="text-center py-12">
+                <Users className="w-12 h-12 mx-auto mb-4 text-gray-400" />
+                <h3 className="text-lg font-medium text-gray-900 mb-2">No users found</h3>
+                <p className="text-gray-600">
+                  {searchTerm ? "Try adjusting your search terms" : "No users have been registered yet"}
+                </p>
+              </div>
+            ) : (
+              <div className="grid gap-4">
+                {filteredUsers.map((user) => (
+                  <Card key={user.id} className="hover:shadow-md transition-shadow">
+                    <CardContent className="p-6">
+                      <div className="flex justify-between items-start">
+                        <div className="flex-1">
+                          <div className="flex items-center gap-3 mb-2">
+                            <h3 className="text-lg font-semibold">
+                              {user.firstName} {user.lastName}
+                            </h3>
+                            <Badge className={`${getStatusColor(user.status || 'active')} text-white`}>
+                              {(user.status || 'active').charAt(0).toUpperCase() + (user.status || 'active').slice(1)}
                             </Badge>
-                          )}
-                        </div>
-                        
-                        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm text-gray-600 mb-3">
-                          <div>
-                            <span className="font-medium">Email:</span> {user.email}
                           </div>
-                          <div>
-                            <span className="font-medium">College:</span> {user.college}
+
+                          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm text-gray-600 mb-3">
+                            <div>
+                              <span className="font-medium">Email:</span> {user.email}
+                            </div>
+                            <div>
+                              <span className="font-medium">College:</span> {user.college}
+                            </div>
+                            <div>
+                              <span className="font-medium">Branch:</span> {user.branch}
+                            </div>
+                            <div>
+                              <span className="font-medium">Year:</span> {user.year}
+                            </div>
+                            <div>
+                              <span className="font-medium">Phone:</span> {user.phone}
+                            </div>
+                            <div>
+                              <span className="font-medium">Gigs Posted:</span> {user.gigCount || 0}
+                            </div>
+                            <div>
+                              <span className="font-medium">Offers Made:</span> {user.offerCount || 0}
+                            </div>
+                            <div>
+                              <span className="font-medium">Auth Method:</span> {user.authMethod}
+                            </div>
                           </div>
-                          <div>
-                            <span className="font-medium">Gigs:</span> {user.gigCount}
-                          </div>
-                          <div>
-                            <span className="font-medium">Rating:</span> {user.rating}/5
+
+                          <div className="text-xs text-gray-500">
+                            Joined: {user.createdAt.toLocaleDateString()} •
+                            Last Updated: {user.updatedAt.toLocaleDateString()}
                           </div>
                         </div>
 
-                        <div className="text-xs text-gray-500">
-                          Joined: {new Date(user.joinDate).toLocaleDateString()} • 
-                          Last Active: {new Date(user.lastActive).toLocaleDateString()}
-                        </div>
-                      </div>
-
-                      <div className="flex gap-2 ml-4">
-                        {user.status === "active" && (
-                          <>
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              onClick={() => handleSuspendUser(user.id)}
-                              className="text-yellow-600 border-yellow-600 hover:bg-yellow-50"
-                            >
-                              <Clock className="w-4 h-4 mr-1" />
-                              Suspend
-                            </Button>
-                            <Button
-                              size="sm"
-                              variant="destructive"
-                              onClick={() => handleBanUser(user.id)}
-                            >
-                              <Ban className="w-4 h-4 mr-1" />
-                              Ban
-                            </Button>
-                          </>
-                        )}
-                        
-                        {(user.status === "suspended" || user.status === "banned") && (
+                        <div className="flex gap-2 ml-4">
                           <Button
                             size="sm"
-                            variant="outline"
-                            onClick={() => handleUnbanUser(user.id)}
-                            className="text-green-600 border-green-600 hover:bg-green-50"
+                            variant="destructive"
+                            onClick={() => handleDeleteUser(user.id)}
+                            disabled={usersLoading}
                           >
-                            <CheckCircle className="w-4 h-4 mr-1" />
-                            Restore
+                            <Trash2 className="w-4 h-4 mr-1" />
+                            Delete User
                           </Button>
-                        )}
+                        </div>
                       </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            )}
+          </TabsContent>
+
+          {/* Gigs Tab */}
+          <TabsContent value="gigs" className="space-y-4">
+            <div className="flex items-center justify-between">
+              <h2 className="text-xl font-semibold">Gigs Management</h2>
+              <div className="flex gap-2">
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+                  <Input
+                    placeholder="Search gigs..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    className="pl-10 w-64"
+                  />
+                </div>
+              </div>
             </div>
+
+            {gigsLoading ? (
+              <div className="flex justify-center items-center py-12">
+                <Loader2 className="w-8 h-8 animate-spin text-blue-500" />
+                <span className="ml-2 text-gray-600">Loading gigs...</span>
+              </div>
+            ) : filteredGigs.length === 0 ? (
+              <div className="text-center py-12">
+                <FileText className="w-12 h-12 mx-auto mb-4 text-gray-400" />
+                <h3 className="text-lg font-medium text-gray-900 mb-2">No gigs found</h3>
+                <p className="text-gray-600">
+                  {searchTerm ? "Try adjusting your search terms" : "No gigs have been posted yet"}
+                </p>
+              </div>
+            ) : (
+              <div className="grid gap-4">
+                {filteredGigs.map((gig) => (
+                  <Card key={gig.id} className="hover:shadow-md transition-shadow">
+                    <CardContent className="p-6">
+                      <div className="flex justify-between items-start">
+                        <div className="flex-1">
+                          <div className="flex items-center gap-3 mb-2">
+                            <h3 className="text-lg font-semibold">{gig.title}</h3>
+                            <Badge className={`${getStatusColor(gig.status)} text-white`}>
+                              {gig.status.charAt(0).toUpperCase() + gig.status.slice(1)}
+                            </Badge>
+                            <Badge variant="outline">
+                              {gig.category}
+                            </Badge>
+                          </div>
+
+                          <p className="text-gray-600 mb-3" style={{
+                            display: '-webkit-box',
+                            WebkitLineClamp: 2,
+                            WebkitBoxOrient: 'vertical',
+                            overflow: 'hidden'
+                          }}>{gig.description}</p>
+
+                          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm text-gray-600 mb-3">
+                            <div>
+                              <span className="font-medium">Budget:</span> ₹{gig.budget}
+                            </div>
+                            <div>
+                              <span className="font-medium">Posted by:</span> {gig.postedByName}
+                            </div>
+                            <div>
+                              <span className="font-medium">College:</span> {gig.college}
+                            </div>
+                            <div>
+                              <span className="font-medium">Location:</span> {gig.location}
+                            </div>
+                          </div>
+
+                          <div className="text-xs text-gray-500">
+                            Posted: {gig.createdAt.toLocaleDateString()} •
+                            Deadline: {gig.deadline.toLocaleDateString()} •
+                            Updated: {gig.updatedAt.toLocaleDateString()}
+                          </div>
+                        </div>
+
+                        <div className="flex gap-2 ml-4">
+                          <Button
+                            size="sm"
+                            variant="destructive"
+                            onClick={() => handleDeleteGig(gig.id!)}
+                            disabled={gigsLoading}
+                          >
+                            <Trash2 className="w-4 h-4 mr-1" />
+                            Delete Gig
+                          </Button>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            )}
           </TabsContent>
 
           {/* Reports Tab */}

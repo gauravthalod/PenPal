@@ -4,7 +4,7 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { Send, Image, Video, Smile, Paperclip, Users, MessageCircle } from "lucide-react";
+import { Send, Image, Video, Smile, Paperclip, Users } from "lucide-react";
 
 interface Message {
   id: string;
@@ -16,11 +16,7 @@ interface Message {
   isCurrentUser: boolean;
 }
 
-interface GroupChatProps {
-  onShowDMList?: () => void;
-}
-
-const GroupChat = ({ onShowDMList }: GroupChatProps) => {
+const GroupChat = () => {
   const [message, setMessage] = useState("");
   const [messages, setMessages] = useState<Message[]>([
     {
@@ -127,16 +123,6 @@ const GroupChat = ({ onShowDMList }: GroupChatProps) => {
               247 online
             </Badge>
           </CardTitle>
-          {onShowDMList && (
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={onShowDMList}
-              className="sm:hidden"
-            >
-              <MessageCircle className="w-4 h-4" />
-            </Button>
-          )}
         </div>
         <p className="text-xs sm:text-sm text-gray-500">
           Connect with fellow CMR students • Share knowledge • Build community
