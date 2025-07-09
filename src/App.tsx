@@ -24,11 +24,7 @@ const App = () => {
   const [showInitialSplash, setShowInitialSplash] = useState(true);
   const [appReady, setAppReady] = useState(false);
 
-  // Show splash screen on initial app load
   useEffect(() => {
-    console.log("🚀 App starting, showing initial splash screen...");
-
-    // Simulate app initialization time
     const initTimer = setTimeout(() => {
       setAppReady(true);
     }, 2500);
@@ -37,11 +33,9 @@ const App = () => {
   }, []);
 
   const handleSplashComplete = () => {
-    console.log("✅ Initial splash screen completed");
     setShowInitialSplash(false);
   };
 
-  // Show initial splash screen
   if (showInitialSplash && !appReady) {
     return <SplashScreen onComplete={handleSplashComplete} duration={2500} showProgress={true} />;
   }

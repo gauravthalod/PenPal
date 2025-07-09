@@ -6,9 +6,9 @@ import NavigationTabs from "@/components/NavigationTabs";
 import GigFeed from "@/components/GigFeed";
 import SplashWrapper from "@/components/SplashWrapper";
 import Buzz from "./Buzz";
-import { Plus, MessageCircle } from "lucide-react";
+
 import { useAuth } from "@/contexts/AuthContext";
-import { useSplash } from "@/contexts/SplashContext";
+
 import { gigService, Gig } from "@/services/database";
 
 
@@ -18,16 +18,11 @@ const Index = () => {
   const [loading, setLoading] = useState(true);
   const { toast } = useToast();
   const { userProfile } = useAuth();
-  const { showSplash } = useSplash();
 
 
-
-  // Fetch gigs from Firebase
   const fetchGigs = async () => {
-    console.log("🔍 fetchGigs called, userProfile:", userProfile);
-
     if (!userProfile?.uid) {
-      console.log("⚠️ No user profile found, showing empty state");
+
       setGigs([]);
       setLoading(false);
       return;
@@ -35,33 +30,18 @@ const Index = () => {
 
     try {
       setLoading(true);
-      console.log("🌍 Fetching all available gigs");
-      console.log("🔍 Current user ID:", userProfile.uid);
 
-      // Get all gigs, excluding user's own gigs
+
+
       const fetchedGigs = await gigService.getAllGigs(50, userProfile.uid);
-      console.log("✅ Successfully fetched gigs (excluding own):", fetchedGigs.length);
 
-      // Log details about each fetched gig
-      fetchedGigs.forEach((gig, index) => {
-        console.log(`📋 Gig ${index + 1}: "${gig.title}" by ${gig.postedByName} (${gig.postedBy}) - Location: ${gig.location || 'Not specified'}`);
-      });
-
-      console.log("🎯 Final fetched gigs:", fetchedGigs);
       setGigs(fetchedGigs);
 
-      // Show success message if we got gigs
-      if (fetchedGigs.length > 0) {
-        console.log(`✅ Successfully loaded ${fetchedGigs.length} gigs from all locations`);
-        const locations = [...new Set(fetchedGigs.map(g => g.location))];
-        console.log("📍 Locations represented:", locations);
-      } else {
-        console.log("⚠️ No gigs found in database");
-      }
-    } catch (error) {
-      console.error("❌ Error fetching gigs:", error);
 
-      // Check if it's a permission error
+    } catch (error) {
+
+
+
       if (error.code === 'permission-denied') {
         toast({
           title: "Permission Error",
@@ -70,8 +50,7 @@ const Index = () => {
         });
         setGigs([]);
       } else {
-        // For other errors, show the gigs that are already stored
-        console.log("❌ Error occurred, keeping existing gigs or showing empty state");
+
         toast({
           title: "Connection Issue",
           description: "Having trouble loading latest gigs. Please try again.",
@@ -83,28 +62,21 @@ const Index = () => {
     }
   };
 
-  // Fetch gigs when component mounts or user profile changes
   useEffect(() => {
-    fetchGigs(); // Fetch real gigs from Firebase
+    fetchGigs();
   }, [userProfile?.uid]);
 
-  const handleMakeOffer = (offerData: { gigId: string; offerPrice: number; message: string }) => {
-    // The offer submission is now handled in MakeOfferDialog component
-    // This callback is just for any additional handling if needed
-    console.log("Offer submitted:", offerData);
+  const handleMakeOffer = () => {
+    // Handled in MakeOfferDialog component
   };
 
-  const handlePostGig = (gigData: any) => {
-    // Refresh gigs list after posting
+  const handlePostGig = () => {
     fetchGigs();
   };
 
   const handleLogin = () => {
-    // This will be handled by the Header component now
-    console.log("Login clicked");
+    // Handled by Header component
   };
-
-
 
   return (
     <SplashWrapper>

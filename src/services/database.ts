@@ -118,27 +118,18 @@ export const gigService = {
   // Get all gigs (regardless of college) - excludes user's own gigs
   async getAllGigs(limitCount = 50, currentUserId?: string) {
     try {
-      console.log("🌍 Getting all gigs from all colleges...");
-      if (currentUserId) {
-        console.log("🚫 Excluding gigs posted by current user:", currentUserId);
-      }
+
       const gigsRef = collection(db, COLLECTIONS.GIGS);
 
       // Get more gigs initially to account for filtering
       const q = query(gigsRef, limit(limitCount * 2));
 
       const querySnapshot = await getDocs(q);
-      console.log("📊 All gigs query snapshot size:", querySnapshot.size);
+
 
       const gigs = querySnapshot.docs.map(doc => {
         const data = doc.data();
-        console.log("📋 Processing gig:", doc.id, {
-          title: data.title,
-          location: data.location,
-          status: data.status,
-          postedBy: data.postedByName,
-          postedById: data.postedBy
-        });
+
         return {
           id: doc.id,
           ...data,
@@ -694,8 +685,4 @@ export const adminService = {
   }
 };
 
-// Initialize database with sample data (for development)
-export const initializeDatabase = async () => {
-  console.log('Database service initialized');
-  // Add any initialization logic here
-};
+
