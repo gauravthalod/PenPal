@@ -27,7 +27,6 @@ import {
 import { useToast } from "@/hooks/use-toast";
 import { adminService, Gig } from "@/services/database";
 import { UserProfile } from "@/contexts/AuthContext";
-import { testAdminFunctionality } from "@/utils/testAdmin";
 
 interface AdminUser extends UserProfile {
   id: string;
@@ -137,7 +136,6 @@ const AdminDashboard = () => {
     loadData();
   }, []);
 
-  // Mock reports data (can be enhanced later with real reporting system)
   const [reports, setReports] = useState<Report[]>([]);
 
   // Delete user and all associated data
@@ -225,30 +223,7 @@ const AdminDashboard = () => {
     });
   };
 
-  // Test admin functionality
-  const handleTestAdmin = async () => {
-    try {
-      const result = await testAdminFunctionality();
-      if (result.success) {
-        toast({
-          title: "Admin Test Successful",
-          description: `Found ${result.usersCount} users and ${result.gigsCount} gigs`
-        });
-      } else {
-        toast({
-          title: "Admin Test Failed",
-          description: result.error,
-          variant: "destructive"
-        });
-      }
-    } catch (error) {
-      toast({
-        title: "Test Error",
-        description: "Failed to run admin tests",
-        variant: "destructive"
-      });
-    }
-  };
+
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -266,7 +241,7 @@ const AdminDashboard = () => {
   const filteredUsers = users.filter(user => {
     const matchesSearch = (user.firstName + " " + user.lastName).toLowerCase().includes(searchTerm.toLowerCase()) ||
                          user.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         user.college.toLowerCase().includes(searchTerm.toLowerCase());
+                         (user.location || '').toLowerCase().includes(searchTerm.toLowerCase());
     const matchesFilter = filterStatus === "all" || user.status === filterStatus;
     return matchesSearch && matchesFilter;
   });
@@ -393,14 +368,7 @@ const AdminDashboard = () => {
         <div className="flex items-center justify-between mb-6">
           <h2 className="text-2xl font-bold">Administration Panel</h2>
           <div className="flex gap-2">
-            <Button
-              onClick={handleTestAdmin}
-              variant="outline"
-              disabled={loading}
-            >
-              <Eye className="w-4 h-4 mr-2" />
-              Test Admin
-            </Button>
+
             <Button
               onClick={handleRefreshData}
               disabled={loading}
@@ -475,21 +443,15 @@ const AdminDashboard = () => {
                             </Badge>
                           </div>
 
-                          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm text-gray-600 mb-3">
+                          <div className="grid grid-cols-2 md:grid-cols-3 gap-4 text-sm text-gray-600 mb-3">
                             <div>
                               <span className="font-medium">Email:</span> {user.email}
                             </div>
                             <div>
-                              <span className="font-medium">College:</span> {user.college}
-                            </div>
-                            <div>
-                              <span className="font-medium">Branch:</span> {user.branch}
-                            </div>
-                            <div>
-                              <span className="font-medium">Year:</span> {user.year}
-                            </div>
-                            <div>
                               <span className="font-medium">Phone:</span> {user.phone}
+                            </div>
+                            <div>
+                              <span className="font-medium">Location:</span> {user.location || 'Not specified'}
                             </div>
                             <div>
                               <span className="font-medium">Gigs Posted:</span> {user.gigCount || 0}
@@ -581,15 +543,12 @@ const AdminDashboard = () => {
                             overflow: 'hidden'
                           }}>{gig.description}</p>
 
-                          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm text-gray-600 mb-3">
+                          <div className="grid grid-cols-2 md:grid-cols-3 gap-4 text-sm text-gray-600 mb-3">
                             <div>
                               <span className="font-medium">Budget:</span> ₹{gig.budget}
                             </div>
                             <div>
                               <span className="font-medium">Posted by:</span> {gig.postedByName}
-                            </div>
-                            <div>
-                              <span className="font-medium">College:</span> {gig.college}
                             </div>
                             <div>
                               <span className="font-medium">Location:</span> {gig.location}

@@ -95,9 +95,22 @@ const Header = ({ onLoginClick, showLoginButton = false }: HeaderProps) => {
             ) : (
               <button
                 onClick={handleProfileClick}
-                className="w-7 h-7 sm:w-8 sm:h-8 bg-gradient-to-r from-blue-400 to-blue-600 rounded-full flex items-center justify-center hover:scale-105 transition-transform cursor-pointer"
+                className="w-7 h-7 sm:w-8 sm:h-8 bg-gradient-to-r from-blue-400 to-blue-600 rounded-full flex items-center justify-center hover:scale-105 transition-transform cursor-pointer overflow-hidden"
+                title="Profile"
               >
-                <User className="w-4 h-4 sm:w-5 sm:h-5 text-white" />
+                {userProfile?.profilePicture ? (
+                  <img
+                    src={userProfile.profilePicture}
+                    alt="Profile"
+                    className="w-full h-full object-cover rounded-full"
+                    onError={(e) => {
+                      // Fallback to icon if image fails to load
+                      e.currentTarget.style.display = 'none';
+                      e.currentTarget.nextElementSibling?.classList.remove('hidden');
+                    }}
+                  />
+                ) : null}
+                <User className={`w-4 h-4 sm:w-5 sm:h-5 text-white ${userProfile?.profilePicture ? 'hidden' : ''}`} />
               </button>
             )}
           </div>

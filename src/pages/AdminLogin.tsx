@@ -209,17 +209,7 @@ const AdminLogin = () => {
                 {isLoading ? "Authenticating..." : "Access Admin Panel"}
               </Button>
 
-              {/* Demo Credentials Info */}
-              <div className="bg-red-50 p-4 rounded-lg border border-red-200">
-                <p className="text-sm text-red-800 font-medium mb-2">Demo Admin Credentials:</p>
-                <div className="space-y-1 text-xs text-red-700 font-mono">
-                  <p><strong>Username:</strong> admin_cmr_2024</p>
-                  <p><strong>Password:</strong> CMR@Admin#2024$Secure!</p>
-                </div>
-                <p className="text-xs text-red-600 mt-2 italic">
-                  ⚠️ These are demo credentials for testing purposes only
-                </p>
-              </div>
+
 
               {/* Security Notice */}
               <div className="bg-yellow-50 p-3 rounded-lg border border-yellow-200">

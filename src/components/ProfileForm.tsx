@@ -13,6 +13,7 @@ import { Lock, Globe, User, LogOut } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { User as FirebaseUser } from "firebase/auth";
 import { UserProfile } from "@/contexts/AuthContext";
+import ProfilePictureUpload from "./ProfilePictureUpload";
 
 interface ProfileFormProps {
   isEditing: boolean;
@@ -43,7 +44,8 @@ const ProfileForm = ({
     lastName: "",
     location: "",
     phone: "",
-    bio: ""
+    bio: "",
+    profilePicture: ""
   });
 
   const [bioCharCount, setBioCharCount] = useState(0);
@@ -57,7 +59,8 @@ const ProfileForm = ({
         lastName: userProfile.lastName || currentUser.displayName?.split(' ').slice(1).join(' ') || "",
         location: userProfile.location || "",
         phone: userProfile.phone || currentUser.phoneNumber || "",
-        bio: userProfile.bio || ""
+        bio: userProfile.bio || "",
+        profilePicture: userProfile.profilePicture || currentUser.photoURL || ""
       });
       setBioCharCount(userProfile.bio?.length || 0);
     } else if (currentUser) {
@@ -76,9 +79,32 @@ const ProfileForm = ({
       ...prev,
       [field]: value
     }));
-    
+
     if (field === "bio" && typeof value === "string") {
       setBioCharCount(value.length);
+    }
+  };
+
+  const handleProfilePictureUpdate = async (newProfilePictureUrl: string) => {
+    try {
+      // Update the local state immediately
+      setProfileData(prev => ({
+        ...prev,
+        profilePicture: newProfilePictureUrl
+      }));
+
+      // Save to database immediately
+      await onSave({ profilePicture: newProfilePictureUrl });
+
+      console.log("✅ Profile picture updated successfully");
+    } catch (error) {
+      console.error("❌ Error updating profile picture:", error);
+      // Revert the local state if save failed
+      setProfileData(prev => ({
+        ...prev,
+        profilePicture: userProfile?.profilePicture || currentUser.photoURL || ""
+      }));
+      throw error;
     }
   };
 
@@ -169,17 +195,13 @@ const ProfileForm = ({
       {/* Header Section */}
       <div className="p-6 border-b">
         <div className="flex items-center gap-4">
-          <div className="relative">
-            <Avatar className="w-16 h-16">
-              <AvatarImage src={currentUser.photoURL || "/placeholder-avatar.jpg"} />
-              <AvatarFallback className="bg-gradient-to-r from-blue-400 to-blue-600 text-white text-xl font-semibold">
-                {getUserInitials()}
-              </AvatarFallback>
-            </Avatar>
-            <div className="absolute -bottom-1 -right-1 w-6 h-6 bg-blue-500 rounded-full flex items-center justify-center">
-              <span className="text-white text-xs">✓</span>
-            </div>
-          </div>
+          <ProfilePictureUpload
+            currentProfilePicture={profileData.profilePicture}
+            userInitials={getUserInitials()}
+            userId={currentUser.uid}
+            onProfilePictureUpdate={handleProfilePictureUpdate}
+            isEditing={isEditing}
+          />
           
           <div className="flex-1">
             <div className="flex items-center gap-2 mb-1">

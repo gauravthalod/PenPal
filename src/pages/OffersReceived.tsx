@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import Header from "@/components/Header";
 import { Button } from "@/components/ui/button";
@@ -7,6 +7,8 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { ArrowLeft, HandCoins, Check, X, Calendar, MapPin } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/contexts/AuthContext";
+import { gigService } from "@/services/database";
 
 interface Offer {
   id: string;
@@ -21,46 +23,39 @@ interface Offer {
 const OffersReceived = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
-  
-  // Mock gig data
-  const gigData = {
-    id: 1,
-    title: "Math assignment help",
-    description: "Need quick help with calculus assignment. Deadline within 2 days. Will provide all materials.",
-    originalPrice: 200,
-    deadline: "2 days",
-    college: "CMREC"
-  };
+  const { userProfile } = useAuth();
 
-  const [offers, setOffers] = useState<Offer[]>([
-    {
-      id: "1",
-      username: "mathwiz",
-      college: "CMRIT",
-      offerPrice: 180,
-      message: "I can deliver within 24h, have helped many with calculus!",
-      timeSubmitted: "2 hours ago",
-      status: "pending"
-    },
-    {
-      id: "2",
-      username: "calcpro",
-      college: "CMRTC",
-      offerPrice: 200,
-      message: "Guaranteed A+, send me the file and I'll get started right away!",
-      timeSubmitted: "4 hours ago",
-      status: "pending"
-    },
-    {
-      id: "3",
-      username: "anil_s",
-      college: "CMRCET",
-      offerPrice: 150,
-      message: "Happy to do it for 150, let me know if you need a sample.",
-      timeSubmitted: "6 hours ago",
-      status: "pending"
-    }
-  ]);
+  const [offers, setOffers] = useState<Offer[]>([]);
+  const [gigData, setGigData] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+
+  // Fetch offers for user's gigs
+  useEffect(() => {
+    const fetchOffersData = async () => {
+      if (!userProfile?.uid) {
+        setLoading(false);
+        return;
+      }
+
+      try {
+        // This would need to be implemented in the database service
+        // For now, show empty state
+        setOffers([]);
+        setGigData(null);
+      } catch (error) {
+        console.error("Error fetching offers:", error);
+        toast({
+          title: "Error",
+          description: "Failed to load offers. Please try again.",
+          variant: "destructive"
+        });
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchOffersData();
+  }, [userProfile?.uid, toast]);
 
   const handleBack = () => {
     navigate("/");
@@ -122,34 +117,42 @@ const OffersReceived = () => {
         </div>
 
         {/* Gig Information */}
-        <Card className="mb-6">
-          <CardHeader>
-            <div className="flex items-start gap-4">
-              <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center">
-                <span className="text-2xl">📝</span>
-              </div>
-              <div className="flex-1">
-                <CardTitle className="text-xl text-gray-900 mb-2">
-                  {gigData.title}
-                </CardTitle>
-                <p className="text-gray-600 mb-3">{gigData.description}</p>
-                <div className="flex items-center gap-4 text-sm">
-                  <div className="flex items-center gap-1 text-green-600 font-semibold">
-                    <span>₹{gigData.originalPrice}</span>
-                  </div>
-                  <div className="flex items-center gap-1 text-gray-500">
-                    <Calendar className="w-4 h-4" />
-                    <span>{gigData.deadline}</span>
-                  </div>
-                  <div className="flex items-center gap-1 text-gray-500">
-                    <MapPin className="w-4 h-4" />
-                    <span>{gigData.college}</span>
+        {gigData ? (
+          <Card className="mb-6">
+            <CardHeader>
+              <div className="flex items-start gap-4">
+                <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center">
+                  <span className="text-2xl">📝</span>
+                </div>
+                <div className="flex-1">
+                  <CardTitle className="text-xl text-gray-900 mb-2">
+                    {gigData.title}
+                  </CardTitle>
+                  <p className="text-gray-600 mb-3">{gigData.description}</p>
+                  <div className="flex items-center gap-4 text-sm">
+                    <div className="flex items-center gap-1 text-green-600 font-semibold">
+                      <span>₹{gigData.originalPrice}</span>
+                    </div>
+                    <div className="flex items-center gap-1 text-gray-500">
+                      <Calendar className="w-4 h-4" />
+                      <span>{gigData.deadline}</span>
+                    </div>
+                    <div className="flex items-center gap-1 text-gray-500">
+                      <MapPin className="w-4 h-4" />
+                      <span>{gigData.location}</span>
+                    </div>
                   </div>
                 </div>
               </div>
-            </div>
-          </CardHeader>
-        </Card>
+            </CardHeader>
+          </Card>
+        ) : (
+          <Card className="mb-6">
+            <CardContent className="text-center py-8">
+              <p className="text-gray-500">No gig data available</p>
+            </CardContent>
+          </Card>
+        )}
 
         {/* Offers Section */}
         <Card>
@@ -164,7 +167,12 @@ const OffersReceived = () => {
           </CardHeader>
           
           <CardContent className="space-y-4">
-            {offers.length === 0 ? (
+            {loading ? (
+              <div className="text-center py-8">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500 mx-auto mb-4"></div>
+                <p className="text-gray-500">Loading offers...</p>
+              </div>
+            ) : offers.length === 0 ? (
               <div className="text-center py-8">
                 <HandCoins className="w-12 h-12 text-gray-400 mx-auto mb-4" />
                 <h3 className="text-lg font-medium text-gray-900 mb-2">No offers yet</h3>

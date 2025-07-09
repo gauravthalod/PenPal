@@ -20,82 +20,15 @@ const Index = () => {
   const { userProfile } = useAuth();
   const { showSplash } = useSplash();
 
-  // Generate mock data for testing when user is not authenticated
-  const generateMockGigs = (): Gig[] => {
-    const today = new Date();
-    const getDateString = (daysFromNow: number) => {
-      const date = new Date(today);
-      date.setDate(today.getDate() + daysFromNow);
-      return date;
-    };
 
-    return [
-      {
-        id: "mock-1",
-        title: "Math assignment help",
-        description: "Need help with calculus assignment. Will provide all materials.",
-        category: "Academic",
-        budget: 200,
-        deadline: getDateString(2),
-        location: "Bangalore",
-        postedBy: "mock-user-1",
-        postedByName: "John Doe",
-        status: 'open',
-        createdAt: new Date(Date.now() - 2 * 60 * 60 * 1000), // 2 hours ago
-        updatedAt: new Date(Date.now() - 2 * 60 * 60 * 1000)
-      },
-      {
-        id: "mock-2",
-        title: "Graphic design for club event",
-        description: "Looking for someone to design poster for our community fest",
-        category: "Creative",
-        budget: 500,
-        deadline: getDateString(5),
-        location: "Mumbai",
-        postedBy: "mock-user-2",
-        postedByName: "Jane Smith",
-        status: 'open',
-        createdAt: new Date(Date.now() - 4 * 60 * 60 * 1000), // 4 hours ago
-        updatedAt: new Date(Date.now() - 4 * 60 * 60 * 1000)
-      },
-      {
-        id: "mock-3",
-        title: "Math tutoring needed",
-        description: "Looking for help with calculus and statistics",
-        category: "Academic",
-        budget: 400,
-        deadline: getDateString(7),
-        location: "Delhi",
-        postedBy: "mock-user-3",
-        postedByName: "Alex Johnson",
-        status: 'open',
-        createdAt: new Date(Date.now() - 6 * 60 * 60 * 1000), // 6 hours ago
-        updatedAt: new Date(Date.now() - 6 * 60 * 60 * 1000)
-      },
-      {
-        id: "mock-4",
-        title: "Event photography",
-        description: "Need photographer for cultural fest",
-        category: "Creative",
-        budget: 800,
-        deadline: getDateString(10),
-        location: "Chennai",
-        postedBy: "mock-user-4",
-        postedByName: "Sarah Wilson",
-        status: 'open',
-        createdAt: new Date(Date.now() - 8 * 60 * 60 * 1000), // 8 hours ago
-        updatedAt: new Date(Date.now() - 8 * 60 * 60 * 1000)
-      }
-    ];
-  };
 
   // Fetch gigs from Firebase
   const fetchGigs = async () => {
     console.log("🔍 fetchGigs called, userProfile:", userProfile);
 
     if (!userProfile?.uid) {
-      console.log("⚠️ No user profile found, using mock data");
-      setGigs(generateMockGigs());
+      console.log("⚠️ No user profile found, showing empty state");
+      setGigs([]);
       setLoading(false);
       return;
     }
@@ -152,8 +85,8 @@ const Index = () => {
 
   // Fetch gigs when component mounts or user profile changes
   useEffect(() => {
-    fetchGigs(); // Always fetch, will use mock data if not authenticated
-  }, [userProfile?.uid]); // Changed from college to uid since we now fetch all gigs
+    fetchGigs(); // Fetch real gigs from Firebase
+  }, [userProfile?.uid]);
 
   const handleMakeOffer = (offerData: { gigId: string; offerPrice: number; message: string }) => {
     // The offer submission is now handled in MakeOfferDialog component
