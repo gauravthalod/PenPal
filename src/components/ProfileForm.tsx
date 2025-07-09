@@ -7,9 +7,9 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Switch } from "@/components/ui/switch";
+
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Star, Lock, Globe, User, LogOut } from "lucide-react";
+import { Lock, Globe, User, LogOut } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { User as FirebaseUser } from "firebase/auth";
 import { UserProfile } from "@/contexts/AuthContext";
@@ -36,49 +36,14 @@ const ProfileForm = ({
   const navigate = useNavigate();
   const { toast } = useToast();
 
-  // CMR Group colleges
-  const colleges = [
-    { value: "cmrec", label: "CMREC - CMR Engineering College" },
-    { value: "cmrit", label: "CMRIT - CMR Institute of Technology" },
-    { value: "cmrtc", label: "CMRTC - CMR Technical Campus" },
-    { value: "cmrcet", label: "CMRCET - CMR College of Engineering & Technology" }
-  ];
 
-  const academicYears = [
-    { value: "1", label: "1st Year" },
-    { value: "2", label: "2nd Year" },
-    { value: "3", label: "3rd Year" },
-    { value: "4", label: "4th Year" },
-    { value: "pg1", label: "PG 1st Year" },
-    { value: "pg2", label: "PG 2nd Year" }
-  ];
-
-  const branches = [
-    "Computer Science Engineering",
-    "Information Technology",
-    "Electronics & Communication Engineering",
-    "Electrical & Electronics Engineering",
-    "Mechanical Engineering",
-    "Civil Engineering",
-    "Chemical Engineering",
-    "Biotechnology",
-    "Aerospace Engineering",
-    "Data Science",
-    "Artificial Intelligence & Machine Learning"
-  ];
 
   const [profileData, setProfileData] = useState({
     firstName: "",
     lastName: "",
-    college: "",
-    year: "",
-    branch: "",
-    rollNumber: "",
+    location: "",
     phone: "",
-    bio: "",
-    rating: 0,
-    reviewCount: 0,
-    anonMode: false
+    bio: ""
   });
 
   const [bioCharCount, setBioCharCount] = useState(0);
@@ -90,15 +55,9 @@ const ProfileForm = ({
       setProfileData({
         firstName: userProfile.firstName || currentUser.displayName?.split(' ')[0] || "",
         lastName: userProfile.lastName || currentUser.displayName?.split(' ').slice(1).join(' ') || "",
-        college: userProfile.college || "",
-        year: userProfile.year || "",
-        branch: userProfile.branch || "",
-        rollNumber: userProfile.rollNumber || "",
+        location: userProfile.location || "",
         phone: userProfile.phone || currentUser.phoneNumber || "",
-        bio: userProfile.bio || "",
-        rating: 4.8, // Default rating
-        reviewCount: 0, // Default review count
-        anonMode: false
+        bio: userProfile.bio || ""
       });
       setBioCharCount(userProfile.bio?.length || 0);
     } else if (currentUser) {
@@ -131,10 +90,10 @@ const ProfileForm = ({
 
   const handleSave = async () => {
     // Validate required fields
-    if (!profileData.firstName || !profileData.lastName || !profileData.college) {
+    if (!profileData.firstName || !profileData.lastName || !profileData.location) {
       toast({
         title: "Validation Error",
-        description: "Please fill in all required fields (First Name, Last Name, College).",
+        description: "Please fill in all required fields (First Name, Last Name, Location).",
         variant: "destructive"
       });
       return;
@@ -145,10 +104,7 @@ const ProfileForm = ({
       const updatedData = {
         firstName: profileData.firstName.trim(),
         lastName: profileData.lastName.trim(),
-        college: profileData.college.trim(),
-        year: profileData.year.trim(),
-        branch: profileData.branch.trim(),
-        rollNumber: profileData.rollNumber.trim(),
+        location: profileData.location.trim(),
         phone: profileData.phone.trim(),
         bio: profileData.bio?.trim() || ''
       };
@@ -228,26 +184,13 @@ const ProfileForm = ({
           <div className="flex-1">
             <div className="flex items-center gap-2 mb-1">
               <h2 className="text-xl font-semibold">{getDisplayName()}</h2>
-              <div className="flex items-center gap-1">
-                <Switch
-                  checked={profileData.anonMode}
-                  onCheckedChange={(checked) => handleInputChange("anonMode", checked)}
-                  disabled={!isEditing}
-                />
-                <span className="text-sm text-gray-600">Anon mode off</span>
-              </div>
             </div>
             <div className="flex items-center gap-2">
-              {profileData.college && (
+              {profileData.location && (
                 <Badge variant="secondary" className="bg-blue-100 text-blue-700">
-                  {colleges.find(c => c.value === profileData.college)?.label || profileData.college}
+                  📍 {profileData.location}
                 </Badge>
               )}
-              <div className="flex items-center gap-1">
-                <Star className="w-4 h-4 fill-yellow-400 text-yellow-400" />
-                <span className="font-medium">{profileData.rating}</span>
-                <span className="text-gray-500">({profileData.reviewCount} reviews)</span>
-              </div>
             </div>
             <div className="mt-1 text-sm text-gray-600">
               {currentUser.email}
@@ -320,88 +263,18 @@ const ProfileForm = ({
               </div>
 
               <div>
-                <Label htmlFor="college">College</Label>
-                {isEditing ? (
-                  <Select value={profileData.college} onValueChange={(value) => handleInputChange("college", value)}>
-                    <SelectTrigger className="mt-1">
-                      <SelectValue placeholder="Select your college" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {colleges.map((college) => (
-                        <SelectItem key={college.value} value={college.value}>
-                          {college.label}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                ) : (
-                  <Input
-                    value={colleges.find(c => c.value === profileData.college)?.label || profileData.college}
-                    disabled
-                    className="mt-1"
-                  />
-                )}
+                <Label htmlFor="location">Location</Label>
+                <Input
+                  id="location"
+                  value={profileData.location}
+                  onChange={(e) => handleInputChange("location", e.target.value)}
+                  disabled={!isEditing}
+                  placeholder="e.g., Bangalore, Mumbai, Delhi"
+                  className="mt-1"
+                />
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <Label htmlFor="year">Academic Year</Label>
-                  {isEditing ? (
-                    <Select value={profileData.year} onValueChange={(value) => handleInputChange("year", value)}>
-                      <SelectTrigger className="mt-1">
-                        <SelectValue placeholder="Select year" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {academicYears.map((year) => (
-                          <SelectItem key={year.value} value={year.value}>
-                            {year.label}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  ) : (
-                    <Input
-                      value={academicYears.find(y => y.value === profileData.year)?.label || profileData.year}
-                      disabled
-                      className="mt-1"
-                    />
-                  )}
-                </div>
-                <div>
-                  <Label htmlFor="rollNumber">Roll Number</Label>
-                  <Input
-                    id="rollNumber"
-                    value={profileData.rollNumber}
-                    onChange={(e) => handleInputChange("rollNumber", e.target.value.toUpperCase())}
-                    disabled={!isEditing}
-                    className="mt-1"
-                  />
-                </div>
-              </div>
 
-              <div>
-                <Label htmlFor="branch">Branch/Department</Label>
-                {isEditing ? (
-                  <Select value={profileData.branch} onValueChange={(value) => handleInputChange("branch", value)}>
-                    <SelectTrigger className="mt-1">
-                      <SelectValue placeholder="Select your branch" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {branches.map((branch) => (
-                        <SelectItem key={branch} value={branch}>
-                          {branch}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                ) : (
-                  <Input
-                    value={profileData.branch}
-                    disabled
-                    className="mt-1"
-                  />
-                )}
-              </div>
 
               <div>
                 <Label htmlFor="email">Email</Label>
@@ -436,34 +309,9 @@ const ProfileForm = ({
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
-              <div>
-                <Label htmlFor="username">Username</Label>
-                <Input
-                  id="username"
-                  value={profileData.username}
-                  onChange={(e) => handleInputChange("username", e.target.value)}
-                  disabled={!isEditing}
-                  className="mt-1"
-                />
-              </div>
-              
-              <div className="flex items-center gap-2">
-                <Switch
-                  checked={profileData.anonMode}
-                  onCheckedChange={(checked) => handleInputChange("anonMode", checked)}
-                  disabled={!isEditing}
-                />
-                <span className="text-sm">Anon mode off</span>
-              </div>
-              
-              <div>
-                <Label>Rating</Label>
-                <div className="flex items-center gap-2 mt-1">
-                  <Star className="w-5 h-5 fill-yellow-400 text-yellow-400" />
-                  <span className="font-medium text-lg">{profileData.rating}</span>
-                  <span className="text-gray-500">({profileData.reviewCount} reviews)</span>
-                </div>
-              </div>
+              <p className="text-gray-600 text-sm">
+                Profile settings and preferences will be available in future updates.
+              </p>
             </CardContent>
           </Card>
         </div>

@@ -81,7 +81,7 @@ const Dashboard = () => {
       console.log("🔍 User profile:", {
         uid: userProfile.uid,
         name: `${userProfile.firstName} ${userProfile.lastName}`,
-        college: userProfile.college
+        location: userProfile.location
       });
       try {
         const userGigs = await gigService.getUserGigs(userProfile.uid);

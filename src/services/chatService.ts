@@ -1,18 +1,19 @@
-import { 
-  collection, 
-  doc, 
-  getDoc, 
-  setDoc, 
+import {
+  collection,
+  doc,
+  getDoc,
+  setDoc,
   addDoc,
-  updateDoc, 
-  query, 
-  where, 
+  updateDoc,
+  query,
+  where,
   getDocs,
   orderBy,
   limit,
   Timestamp,
   onSnapshot,
-  Unsubscribe
+  Unsubscribe,
+  writeBatch
 } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { COLLECTIONS } from './database';
@@ -54,28 +55,79 @@ export const chatService = {
 
       const chatsRef = collection(db, COLLECTIONS.CHATS);
 
-      // Check if chat already exists for this offer
-      console.log("🔍 Checking for existing chat...");
-      const existingChatQuery = query(
+      // First, check if chat already exists between these two participants (regardless of gig)
+      console.log("🔍 Checking for existing chat between participants...");
+      const participantChatQuery = query(
         chatsRef,
-        where('offerId', '==', chatData.offerId)
+        where('participants', '==', chatData.participants)
       );
-      const existingChats = await getDocs(existingChatQuery);
+      const participantChats = await getDocs(participantChatQuery);
 
-      if (!existingChats.empty) {
-        // Return existing chat
-        console.log("✅ Found existing chat, returning it");
-        const existingChat = existingChats.docs[0];
+      if (!participantChats.empty) {
+        // Return existing chat between these participants
+        console.log("✅ Found existing chat between participants, reusing it");
+        const existingChat = participantChats.docs[0];
+        const chatDoc = existingChat.data();
+
+        // Update the chat with new gig context (latest accepted offer)
+        await updateDoc(existingChat.ref, {
+          gigId: chatData.gigId,
+          gigTitle: chatData.gigTitle,
+          offerId: chatData.offerId,
+          updatedAt: Timestamp.now()
+        });
+
+        console.log("✅ Updated existing chat with new gig context");
+
         return {
           id: existingChat.id,
-          ...existingChat.data(),
-          createdAt: existingChat.data().createdAt?.toDate() || new Date(),
-          updatedAt: existingChat.data().updatedAt?.toDate() || new Date(),
-          lastMessageTime: existingChat.data().lastMessageTime?.toDate()
+          ...chatDoc,
+          gigId: chatData.gigId,
+          gigTitle: chatData.gigTitle,
+          offerId: chatData.offerId,
+          createdAt: chatDoc.createdAt?.toDate() || new Date(),
+          updatedAt: new Date(),
+          lastMessageTime: chatDoc.lastMessageTime?.toDate()
         } as Chat;
       }
 
-      console.log("🆕 Creating new chat...");
+      // Also check reverse order of participants (in case they're stored differently)
+      const reverseParticipants = [chatData.participants[1], chatData.participants[0]];
+      const reverseChatQuery = query(
+        chatsRef,
+        where('participants', '==', reverseParticipants)
+      );
+      const reverseChats = await getDocs(reverseChatQuery);
+
+      if (!reverseChats.empty) {
+        // Return existing chat with reverse participants
+        console.log("✅ Found existing chat with reverse participants, reusing it");
+        const existingChat = reverseChats.docs[0];
+        const chatDoc = existingChat.data();
+
+        // Update the chat with new gig context
+        await updateDoc(existingChat.ref, {
+          gigId: chatData.gigId,
+          gigTitle: chatData.gigTitle,
+          offerId: chatData.offerId,
+          updatedAt: Timestamp.now()
+        });
+
+        console.log("✅ Updated existing reverse chat with new gig context");
+
+        return {
+          id: existingChat.id,
+          ...chatDoc,
+          gigId: chatData.gigId,
+          gigTitle: chatData.gigTitle,
+          offerId: chatData.offerId,
+          createdAt: chatDoc.createdAt?.toDate() || new Date(),
+          updatedAt: new Date(),
+          lastMessageTime: chatDoc.lastMessageTime?.toDate()
+        } as Chat;
+      }
+
+      console.log("🆕 No existing chat found, creating new chat...");
       const chatDoc = {
         ...chatData,
         createdAt: Timestamp.now(),
@@ -85,7 +137,7 @@ export const chatService = {
       const docRef = doc(chatsRef);
       await setDoc(docRef, chatDoc);
 
-      console.log("✅ Chat created successfully with ID:", docRef.id);
+      console.log("✅ New chat created successfully with ID:", docRef.id);
 
       return {
         id: docRef.id,
@@ -252,7 +304,7 @@ export const chatService = {
     try {
       const chats = await this.getChatsForUser(userId);
       let totalUnread = 0;
-      
+
       for (const chat of chats) {
         if (chat.id) {
           const messagesRef = collection(db, COLLECTIONS.MESSAGES);
@@ -262,16 +314,50 @@ export const chatService = {
             where('senderId', '!=', userId), // Not sent by current user
             where('readBy', 'not-in', [[userId]]) // Not read by current user
           );
-          
+
           const querySnapshot = await getDocs(q);
           totalUnread += querySnapshot.size;
         }
       }
-      
+
       return totalUnread;
     } catch (error) {
       console.error("Error getting unread count:", error);
       return 0;
+    }
+  },
+
+  // Delete a chat and all its messages
+  async deleteChat(chatId: string) {
+    try {
+      console.log("🗑️ Deleting chat:", chatId);
+
+      // First, delete all messages in this chat
+      const messagesRef = collection(db, COLLECTIONS.MESSAGES);
+      const messagesQuery = query(messagesRef, where('chatId', '==', chatId));
+      const messagesSnapshot = await getDocs(messagesQuery);
+
+      const batch = writeBatch(db);
+
+      // Delete all messages
+      messagesSnapshot.docs.forEach(messageDoc => {
+        batch.delete(messageDoc.ref);
+      });
+
+      // Delete the chat itself
+      const chatRef = doc(db, COLLECTIONS.CHATS, chatId);
+      batch.delete(chatRef);
+
+      // Execute all deletions
+      await batch.commit();
+
+      console.log(`✅ Chat ${chatId} and ${messagesSnapshot.size} messages deleted successfully`);
+      return {
+        deletedMessages: messagesSnapshot.size
+      };
+    } catch (error) {
+      console.error("❌ Error deleting chat:", error);
+      throw error;
     }
   }
 };

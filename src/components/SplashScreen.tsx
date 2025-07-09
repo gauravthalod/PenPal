@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import PenPalLogo from "./PenPalLogo";
 
 interface SplashScreenProps {
   onComplete?: () => void;
@@ -52,16 +53,11 @@ const SplashScreen = ({ onComplete, duration = 2500, showProgress = true }: Spla
       <div className="text-center">
         {/* Logo Animation */}
         <div className="mb-8 animate-bounce">
-          <div className="w-24 h-24 bg-white rounded-2xl flex items-center justify-center mx-auto shadow-2xl">
-            <span className="text-4xl font-bold text-blue-600">🎓</span>
+          <div className="bg-white rounded-2xl p-6 mx-auto shadow-2xl inline-block">
+            <PenPalLogo size="xlarge" />
           </div>
         </div>
 
-        {/* App Name */}
-        <h1 className="text-4xl md:text-5xl font-bold text-white mb-2 animate-pulse">
-          CampusCrew
-        </h1>
-        
         {/* Tagline */}
         <p className="text-blue-100 text-lg md:text-xl mb-8 animate-fade-in">
           Connect. Collaborate. Create.

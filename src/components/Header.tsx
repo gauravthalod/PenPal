@@ -4,6 +4,7 @@ import { User, LogIn, BarChart3, MessageCircle } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useSplash } from "@/contexts/SplashContext";
 import { useAuth } from "@/contexts/AuthContext";
+import PenPalLogo from "./PenPalLogo";
 
 interface HeaderProps {
   onLoginClick?: () => void;
@@ -54,13 +55,14 @@ const Header = ({ onLoginClick, showLoginButton = false }: HeaderProps) => {
         <div className="flex items-center justify-between">
           <button
             onClick={handleLogoClick}
-            className="flex items-center space-x-2 sm:space-x-3 cursor-pointer"
+            className="cursor-pointer"
           >
-            <div className="w-8 h-8 sm:w-10 sm:h-10 bg-blue-500 rounded-lg flex items-center justify-center">
-              <span className="text-white font-bold text-base sm:text-lg">🎓</span>
+            <div className="hidden xs:block">
+              <PenPalLogo size="medium" />
             </div>
-            <h1 className="text-lg sm:text-2xl font-bold text-blue-600 hidden xs:block">CampusCrew</h1>
-            <h1 className="text-lg font-bold text-blue-600 xs:hidden">CC</h1>
+            <div className="xs:hidden">
+              <PenPalLogo size="small" variant="icon" />
+            </div>
           </button>
 
           <div className="flex items-center space-x-2 sm:space-x-4">

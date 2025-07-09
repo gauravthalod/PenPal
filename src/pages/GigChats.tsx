@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import Header from "@/components/Header";
 import ChatList from "@/components/ChatList";
@@ -6,10 +6,19 @@ import GigChat from "@/components/GigChat";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft, MessageCircle } from "lucide-react";
 import { Chat } from "@/services/chatService";
+import { useAuth } from "@/contexts/AuthContext";
 
 const GigChats = () => {
   const navigate = useNavigate();
+  const { userProfile, loading: authLoading } = useAuth();
   const [selectedChat, setSelectedChat] = useState<Chat | null>(null);
+
+  // Redirect to login if not authenticated
+  useEffect(() => {
+    if (!authLoading && !userProfile) {
+      navigate("/login");
+    }
+  }, [authLoading, userProfile, navigate]);
 
   const handleBack = () => {
     navigate("/");
@@ -22,6 +31,28 @@ const GigChats = () => {
   const handleBackToList = () => {
     setSelectedChat(null);
   };
+
+  // Show loading while checking authentication
+  if (authLoading) {
+    return (
+      <div className="min-h-screen bg-gray-50">
+        <Header />
+        <div className="max-w-7xl mx-auto px-4 py-6">
+          <div className="flex items-center justify-center h-64">
+            <div className="text-center">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500 mx-auto mb-4"></div>
+              <p className="text-gray-600">Loading chats...</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Don't render if user is not authenticated (will redirect)
+  if (!userProfile) {
+    return null;
+  }
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -38,15 +69,7 @@ const GigChats = () => {
             Back to Home
           </Button>
           
-          <div className="flex items-center gap-3 mb-6">
-            <MessageCircle className="w-8 h-8 text-blue-500" />
-            <div>
-              <h1 className="text-2xl font-bold text-gray-900">Gig Chats</h1>
-              <p className="text-gray-600">
-                Chat with people about accepted gig offers
-              </p>
-            </div>
-          </div>
+
         </div>
 
         {/* Desktop Layout */}

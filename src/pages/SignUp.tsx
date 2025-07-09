@@ -7,6 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { GraduationCap, User, Phone, MessageSquare } from "lucide-react";
+import PenPalLogo from "@/components/PenPalLogo";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
 import { ConfirmationResult } from "firebase/auth";
@@ -20,11 +21,8 @@ const SignUp = () => {
   const [formData, setFormData] = useState({
     firstName: "",
     lastName: "",
-    college: "",
-    year: "",
-    branch: "",
     phone: "",
-    rollNumber: "",
+    location: "",
     otp: ""
   });
 
@@ -32,36 +30,9 @@ const SignUp = () => {
   const [error, setError] = useState("");
   const [confirmationResult, setConfirmationResult] = useState<ConfirmationResult | null>(null);
 
-  // CMR Group colleges
-  const colleges = [
-    { value: "cmrec", label: "CMREC - CMR Engineering College", domain: "cmrec.ac.in" },
-    { value: "cmrit", label: "CMRIT - CMR Institute of Technology", domain: "cmrit.ac.in" },
-    { value: "cmrtc", label: "CMRTC - CMR Technical Campus", domain: "cmrtc.ac.in" },
-    { value: "cmrcet", label: "CMRCET - CMR College of Engineering & Technology", domain: "cmrcet.ac.in" }
-  ];
 
-  const academicYears = [
-    { value: "1", label: "1st Year" },
-    { value: "2", label: "2nd Year" },
-    { value: "3", label: "3rd Year" },
-    { value: "4", label: "4th Year" },
-    { value: "pg1", label: "PG 1st Year" },
-    { value: "pg2", label: "PG 2nd Year" }
-  ];
 
-  const branches = [
-    "Computer Science Engineering",
-    "Information Technology", 
-    "Electronics & Communication Engineering",
-    "Electrical & Electronics Engineering",
-    "Mechanical Engineering",
-    "Civil Engineering",
-    "Chemical Engineering",
-    "Biotechnology",
-    "Aerospace Engineering",
-    "Data Science",
-    "Artificial Intelligence & Machine Learning"
-  ];
+
 
   const handleInputChange = (field: string, value: string) => {
     setFormData(prev => ({
@@ -109,18 +80,8 @@ const SignUp = () => {
       return false;
     }
 
-    if (!formData.college) {
-      setError("Please select your college");
-      return false;
-    }
-
-    if (!formData.year || !formData.branch) {
-      setError("Please select your academic year and branch");
-      return false;
-    }
-
-    if (!formData.rollNumber) {
-      setError("Please enter your roll number");
+    if (!formData.location) {
+      setError("Please enter your location");
       return false;
     }
 
@@ -186,17 +147,14 @@ const SignUp = () => {
       await createUserProfile({
         firstName: formData.firstName,
         lastName: formData.lastName,
-        college: formData.college,
-        year: formData.year,
-        branch: formData.branch,
+        location: formData.location,
         phone: formData.phone,
-        rollNumber: formData.rollNumber,
         authMethod: 'phone'
       });
 
       toast({
         title: "Registration Successful!",
-        description: "Welcome to CampusCrew! You can now access your dashboard.",
+        description: "Welcome to PenPal! You can now access your dashboard.",
       });
 
       // Navigate to dashboard
@@ -217,7 +175,7 @@ const SignUp = () => {
       await signInWithGoogle();
       toast({
         title: "Sign Up Successful!",
-        description: "Welcome to CampusCrew! Please complete your profile.",
+        description: "Welcome to PenPal! Please complete your profile.",
       });
       navigate("/profile"); // Redirect to profile completion
     } catch (err: any) {
@@ -263,14 +221,11 @@ const SignUp = () => {
       <div className="w-full max-w-2xl">
         {/* Header */}
         <div className="text-center mb-8">
-          <div className="flex items-center justify-center gap-3 mb-4">
-            <div className="w-12 h-12 bg-blue-500 rounded-lg flex items-center justify-center">
-              <GraduationCap className="w-7 h-7 text-white" />
-            </div>
-            <h1 className="text-3xl font-bold text-blue-600">CampusCrew</h1>
+          <div className="flex justify-center mb-4">
+            <PenPalLogo size="large" />
           </div>
           <p className="text-gray-600">
-            {step === "details" ? "Join the CMR Group community" : "Verify your phone number"}
+            {step === "details" ? "Join the freelance community" : "Verify your phone number"}
           </p>
         </div>
 
@@ -319,21 +274,19 @@ const SignUp = () => {
                 </div>
               </div>
 
-              {/* College Selection */}
+              {/* Location */}
               <div className="space-y-2">
-                <Label htmlFor="college">College *</Label>
-                <Select value={formData.college} onValueChange={(value) => handleInputChange("college", value)}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select your college" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {colleges.map((college) => (
-                      <SelectItem key={college.value} value={college.value}>
-                        {college.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <Label htmlFor="location">Location *</Label>
+                <Input
+                  id="location"
+                  placeholder="e.g., Bangalore, Mumbai, Delhi"
+                  value={formData.location}
+                  onChange={(e) => handleInputChange("location", e.target.value)}
+                  required
+                />
+                <p className="text-xs text-gray-500">
+                  Enter your city or area
+                </p>
               </div>
 
               {/* Phone Number */}
@@ -362,51 +315,7 @@ const SignUp = () => {
                 </p>
               </div>
 
-              {/* Academic Details */}
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="year">Academic Year *</Label>
-                  <Select value={formData.year} onValueChange={(value) => handleInputChange("year", value)}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select year" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {academicYears.map((year) => (
-                        <SelectItem key={year.value} value={year.value}>
-                          {year.label}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="rollNumber">Roll Number *</Label>
-                  <Input
-                    id="rollNumber"
-                    placeholder="e.g., 21R01A0501"
-                    value={formData.rollNumber}
-                    onChange={(e) => handleInputChange("rollNumber", e.target.value.toUpperCase())}
-                    required
-                  />
-                </div>
-              </div>
 
-              {/* Branch */}
-              <div className="space-y-2">
-                <Label htmlFor="branch">Branch/Department *</Label>
-                <Select value={formData.branch} onValueChange={(value) => handleInputChange("branch", value)}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select your branch" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {branches.map((branch) => (
-                      <SelectItem key={branch} value={branch}>
-                        {branch}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
 
               {/* Send OTP Button */}
               <Button

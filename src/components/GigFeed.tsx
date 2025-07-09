@@ -19,7 +19,7 @@ interface ComponentGig {
   price: number;
   deadline: string;
   poster: string;
-  university: string;
+  location: string;
   timePosted: string;
   postedBy: string;
   postedByName: string;
@@ -77,7 +77,7 @@ const GigFeed = ({ gigs, loading = false, onMakeOffer, onPostGig, onRefresh }: G
         year: 'numeric'
       }),
       poster: gig.postedByName.split(' ')[0], // First name only for privacy
-      university: gig.college,
+      location: gig.location || "Remote",
       timePosted,
       postedBy: gig.postedBy,
       postedByName: gig.postedByName

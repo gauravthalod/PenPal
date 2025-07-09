@@ -9,16 +9,13 @@ import {
 import { doc, getDoc, setDoc, updateDoc } from 'firebase/firestore';
 import { auth, googleProvider, db, setupRecaptcha, sendPhoneOTP } from '@/lib/firebase';
 
-// User profile interface for CampusCrew
+// User profile interface for PenPal
 export interface UserProfile {
   uid: string;
   email: string;
   firstName: string;
   lastName: string;
-  college: string;
-  year: string;
-  branch: string;
-  rollNumber: string;
+  location: string;
   phone: string;
   profilePicture?: string;
   authMethod: 'google' | 'phone';
@@ -82,10 +79,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           lastName: user.displayName?.split(' ').slice(1).join(' ') || '',
           profilePicture: user.photoURL || '',
           authMethod: 'google',
-          college: '', // Will be filled in profile page
-          year: '',
-          branch: '',
-          rollNumber: '',
+          location: '', // Will be filled in profile page
           phone: '',
           createdAt: new Date(),
           updatedAt: new Date()
@@ -142,10 +136,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           lastName: '', // Will be filled in profile page
           phone: user.phoneNumber || '',
           authMethod: 'phone',
-          college: '', // Will be filled in profile page
-          year: '',
-          branch: '',
-          rollNumber: '',
+          location: '', // Will be filled in profile page
           createdAt: new Date(),
           updatedAt: new Date()
         };

@@ -90,7 +90,6 @@ export interface Gig {
   budget: number;
   deadline: Date;
   location: string;
-  college: string;
   postedBy: string;
   postedByName: string;
   status: 'open' | 'in_progress' | 'completed' | 'cancelled';
@@ -114,53 +113,7 @@ export const gigService = {
     return { id: docRef.id, ...gigDoc };
   },
 
-  // Get gigs by college
-  async getGigsByCollege(college: string, limitCount = 20) {
-    try {
-      console.log("Getting gigs for college:", college);
-      const gigsRef = collection(db, COLLECTIONS.GIGS);
 
-      let querySnapshot;
-
-      try {
-        // Try query with college filter
-        const q = query(gigsRef, where('college', '==', college), limit(limitCount));
-        console.log("Executing Firestore query with college filter...");
-        querySnapshot = await getDocs(q);
-        console.log("Query snapshot size:", querySnapshot.size);
-      } catch (queryError) {
-        console.warn("College-specific query failed, trying without filter:", queryError);
-        // Fallback: get all gigs and filter client-side
-        const q = query(gigsRef, limit(limitCount * 2)); // Get more to account for filtering
-        querySnapshot = await getDocs(q);
-        console.log("Fallback query snapshot size:", querySnapshot.size);
-      }
-
-      const gigs = querySnapshot.docs.map(doc => {
-        const data = doc.data();
-        console.log("Processing gig doc:", doc.id, data);
-        return {
-          id: doc.id,
-          ...data,
-          createdAt: data.createdAt?.toDate() || new Date(),
-          updatedAt: data.updatedAt?.toDate() || new Date(),
-          deadline: data.deadline?.toDate() || new Date()
-        };
-      }) as Gig[];
-
-      // Filter for college and open status client-side, then sort by creation date
-      const filteredGigs = gigs
-        .filter(gig => gig.college === college && gig.status === 'open')
-        .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())
-        .slice(0, limitCount);
-
-      console.log("Processed and filtered gigs:", filteredGigs);
-      return filteredGigs;
-    } catch (error) {
-      console.error("Error in getGigsByCollege:", error);
-      throw error;
-    }
-  },
 
   // Get all gigs (regardless of college) - excludes user's own gigs
   async getAllGigs(limitCount = 50, currentUserId?: string) {
@@ -181,7 +134,7 @@ export const gigService = {
         const data = doc.data();
         console.log("📋 Processing gig:", doc.id, {
           title: data.title,
-          college: data.college,
+          location: data.location,
           status: data.status,
           postedBy: data.postedByName,
           postedById: data.postedBy
@@ -225,35 +178,7 @@ export const gigService = {
     }
   },
 
-  // Search gigs by college with text search
-  async searchGigsByCollege(college: string, searchQuery: string, limitCount = 20) {
-    const gigsRef = collection(db, COLLECTIONS.GIGS);
-    const q = query(
-      gigsRef,
-      where('college', '==', college),
-      where('status', '==', 'open'),
-      orderBy('createdAt', 'desc'),
-      limit(limitCount)
-    );
 
-    const querySnapshot = await getDocs(q);
-    const allGigs = querySnapshot.docs.map(doc => ({
-      id: doc.id,
-      ...doc.data(),
-      createdAt: doc.data().createdAt?.toDate() || new Date(),
-      updatedAt: doc.data().updatedAt?.toDate() || new Date(),
-      deadline: doc.data().deadline?.toDate() || new Date()
-    })) as Gig[];
-
-    // Client-side filtering for text search (Firebase doesn't support full-text search)
-    const searchLower = searchQuery.toLowerCase();
-    return allGigs.filter(gig =>
-      gig.title.toLowerCase().includes(searchLower) ||
-      gig.description.toLowerCase().includes(searchLower) ||
-      gig.category.toLowerCase().includes(searchLower) ||
-      gig.postedByName.toLowerCase().includes(searchLower)
-    );
-  },
 
   // Get user's posted gigs
   async getUserGigs(userId: string) {

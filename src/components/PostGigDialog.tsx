@@ -147,15 +147,14 @@ const PostGigDialog = ({ open, onOpenChange, onSubmit }: PostGigDialogProps) => 
         category: formData.category,
         budget: price,
         deadline: deadlineDate,
-        location: "Campus", // Default location
-        college: userProfile.college,
+        location: userProfile.location || "Remote", // Use user's location
         postedBy: userProfile.uid,
         postedByName: `${userProfile.firstName} ${userProfile.lastName}`.trim(),
         status: 'open' as const
       };
 
       console.log("🚀 Posting gig with data:", gigData);
-      console.log("🔍 User profile college:", userProfile.college);
+      console.log("🔍 User profile location:", userProfile.location);
       console.log("🔍 User ID:", userProfile.uid);
       console.log("🔍 User name:", `${userProfile.firstName} ${userProfile.lastName}`);
 

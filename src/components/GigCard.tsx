@@ -14,7 +14,7 @@ interface GigCardProps {
     price: number;
     deadline: string;
     poster: string;
-    university: string;
+    location?: string;
     timePosted: string;
     postedBy?: string; // Add postedBy to check ownership
   };
@@ -71,8 +71,12 @@ const GigCard = ({ gig, onMakeOffer }: GigCardProps) => {
             <div className="flex items-center space-x-1 text-xs text-gray-500">
               <User className="w-3 h-3" />
               <span>@{gig.poster}</span>
-              <span>•</span>
-              <span>{gig.university}</span>
+              {gig.location && (
+                <>
+                  <span>•</span>
+                  <span>📍 {gig.location}</span>
+                </>
+              )}
             </div>
             {!isOwnGig && (
               <Button
@@ -108,9 +112,11 @@ const GigCard = ({ gig, onMakeOffer }: GigCardProps) => {
                   <User className="w-4 h-4" />
                   <span>@{gig.poster}</span>
                 </div>
-                <div className="flex items-center space-x-1">
-                  <span className="text-blue-600">{gig.university}</span>
-                </div>
+                {gig.location && (
+                  <div className="flex items-center space-x-1">
+                    <span className="text-blue-600">📍 {gig.location}</span>
+                  </div>
+                )}
               </div>
 
               <div className="flex items-center space-x-2">

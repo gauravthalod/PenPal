@@ -37,8 +37,7 @@ const Index = () => {
         category: "Academic",
         budget: 200,
         deadline: getDateString(2),
-        location: "Campus",
-        college: "CMREC",
+        location: "Bangalore",
         postedBy: "mock-user-1",
         postedByName: "John Doe",
         status: 'open',
@@ -48,12 +47,11 @@ const Index = () => {
       {
         id: "mock-2",
         title: "Graphic design for club event",
-        description: "Looking for someone to design poster for our college fest",
+        description: "Looking for someone to design poster for our community fest",
         category: "Creative",
         budget: 500,
         deadline: getDateString(5),
-        location: "Campus",
-        college: "CMREC",
+        location: "Mumbai",
         postedBy: "mock-user-2",
         postedByName: "Jane Smith",
         status: 'open',
@@ -67,8 +65,7 @@ const Index = () => {
         category: "Academic",
         budget: 400,
         deadline: getDateString(7),
-        location: "Library",
-        college: "CMRTC",
+        location: "Delhi",
         postedBy: "mock-user-3",
         postedByName: "Alex Johnson",
         status: 'open',
@@ -78,12 +75,11 @@ const Index = () => {
       {
         id: "mock-4",
         title: "Event photography",
-        description: "Need photographer for college cultural fest",
+        description: "Need photographer for cultural fest",
         category: "Creative",
         budget: 800,
         deadline: getDateString(10),
-        location: "Auditorium",
-        college: "CMRCET",
+        location: "Chennai",
         postedBy: "mock-user-4",
         postedByName: "Sarah Wilson",
         status: 'open',
@@ -106,16 +102,16 @@ const Index = () => {
 
     try {
       setLoading(true);
-      console.log("🌍 Fetching gigs from ALL colleges (no college filter)");
+      console.log("🌍 Fetching all available gigs");
       console.log("🔍 Current user ID:", userProfile.uid);
 
-      // Get all gigs regardless of college, excluding user's own gigs
+      // Get all gigs, excluding user's own gigs
       const fetchedGigs = await gigService.getAllGigs(50, userProfile.uid);
-      console.log("✅ Successfully fetched gigs from all colleges (excluding own):", fetchedGigs.length);
+      console.log("✅ Successfully fetched gigs (excluding own):", fetchedGigs.length);
 
       // Log details about each fetched gig
       fetchedGigs.forEach((gig, index) => {
-        console.log(`📋 Gig ${index + 1}: "${gig.title}" by ${gig.postedByName} (${gig.postedBy}) - College: ${gig.college}`);
+        console.log(`📋 Gig ${index + 1}: "${gig.title}" by ${gig.postedByName} (${gig.postedBy}) - Location: ${gig.location || 'Not specified'}`);
       });
 
       console.log("🎯 Final fetched gigs:", fetchedGigs);
@@ -123,9 +119,9 @@ const Index = () => {
 
       // Show success message if we got gigs
       if (fetchedGigs.length > 0) {
-        console.log(`✅ Successfully loaded ${fetchedGigs.length} gigs from all colleges`);
-        const colleges = [...new Set(fetchedGigs.map(g => g.college))];
-        console.log("🏫 Colleges represented:", colleges);
+        console.log(`✅ Successfully loaded ${fetchedGigs.length} gigs from all locations`);
+        const locations = [...new Set(fetchedGigs.map(g => g.location))];
+        console.log("📍 Locations represented:", locations);
       } else {
         console.log("⚠️ No gigs found in database");
       }
@@ -136,7 +132,7 @@ const Index = () => {
       if (error.code === 'permission-denied') {
         toast({
           title: "Permission Error",
-          description: "Please log in to view gigs for your college.",
+          description: "Please log in to view available gigs.",
           variant: "destructive"
         });
         setGigs([]);

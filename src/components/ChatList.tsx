@@ -3,7 +3,14 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
-import { MessageCircle, Search, Clock, Users } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { MessageCircle, Search, Clock, Users, Trash2, MoreVertical } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { chatService, Chat } from "@/services/chatService";
 import { useToast } from "@/hooks/use-toast";
@@ -50,6 +57,39 @@ const ChatList = ({ onChatSelect, selectedChatId }: ChatListProps) => {
 
   const getInitials = (name: string) => {
     return name.split(' ').map(n => n[0]).join('').toUpperCase();
+  };
+
+  const handleDeleteChat = async (chatId: string, chatTitle: string) => {
+    try {
+      console.log("🗑️ Deleting chat:", chatId);
+
+      // Show confirmation
+      const confirmed = window.confirm(
+        `Are you sure you want to delete the chat for "${chatTitle}"? This action cannot be undone.`
+      );
+
+      if (!confirmed) return;
+
+      // Delete the chat
+      await chatService.deleteChat(chatId);
+
+      // Remove from local state
+      setChats(prevChats => prevChats.filter(chat => chat.id !== chatId));
+
+      toast({
+        title: "Chat Deleted",
+        description: `Chat for "${chatTitle}" has been deleted successfully.`,
+      });
+
+      console.log("✅ Chat deleted successfully");
+    } catch (error) {
+      console.error("❌ Error deleting chat:", error);
+      toast({
+        title: "Error",
+        description: "Failed to delete chat. Please try again.",
+        variant: "destructive"
+      });
+    }
   };
 
   const formatLastMessageTime = (date?: Date) => {
@@ -152,19 +192,24 @@ const ChatList = ({ onChatSelect, selectedChatId }: ChatListProps) => {
                 return (
                   <div
                     key={chat.id}
-                    onClick={() => onChatSelect(chat)}
-                    className={`p-4 cursor-pointer hover:bg-gray-50 border-b border-gray-100 transition-colors ${
+                    className={`p-4 border-b border-gray-100 transition-colors ${
                       isSelected ? "bg-blue-50 border-blue-200" : ""
                     }`}
                   >
                     <div className="flex items-start gap-3">
-                      <Avatar className="w-12 h-12 flex-shrink-0">
+                      <Avatar
+                        className="w-12 h-12 flex-shrink-0 cursor-pointer"
+                        onClick={() => onChatSelect(chat)}
+                      >
                         <AvatarFallback className="bg-gradient-to-r from-blue-400 to-blue-600 text-white">
                           {getInitials(otherParticipantName)}
                         </AvatarFallback>
                       </Avatar>
-                      
-                      <div className="flex-1 min-w-0">
+
+                      <div
+                        className="flex-1 min-w-0 cursor-pointer"
+                        onClick={() => onChatSelect(chat)}
+                      >
                         <div className="flex items-center justify-between mb-1">
                           <h4 className="font-medium text-gray-900 truncate">
                             {otherParticipantName}
@@ -176,17 +221,17 @@ const ChatList = ({ onChatSelect, selectedChatId }: ChatListProps) => {
                             </span>
                           )}
                         </div>
-                        
+
                         <p className="text-sm text-gray-600 mb-2 truncate">
                           Gig: {chat.gigTitle}
                         </p>
-                        
+
                         {chat.lastMessage && (
                           <p className="text-sm text-gray-500 truncate">
                             {chat.lastMessage}
                           </p>
                         )}
-                        
+
                         <div className="flex items-center justify-between mt-2">
                           <Badge variant="outline" className="text-xs">
                             <Users className="w-3 h-3 mr-1" />
@@ -194,6 +239,32 @@ const ChatList = ({ onChatSelect, selectedChatId }: ChatListProps) => {
                           </Badge>
                         </div>
                       </div>
+
+                      {/* Chat Actions Dropdown */}
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-8 w-8 p-0 hover:bg-gray-100"
+                            onClick={(e) => e.stopPropagation()}
+                          >
+                            <MoreVertical className="h-4 w-4" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          <DropdownMenuItem
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleDeleteChat(chat.id!, chat.gigTitle);
+                            }}
+                            className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                          >
+                            <Trash2 className="h-4 w-4 mr-2" />
+                            Delete Chat
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
                     </div>
                   </div>
                 );

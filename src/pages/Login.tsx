@@ -6,6 +6,7 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Phone, GraduationCap, MessageSquare } from "lucide-react";
+import PenPalLogo from "@/components/PenPalLogo";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
 import { ConfirmationResult } from "firebase/auth";
@@ -118,7 +119,7 @@ const Login = () => {
       await verifyOTP(confirmationResult, formData.otp);
       toast({
         title: "Login Successful",
-        description: "Welcome back to CampusCrew!",
+        description: "Welcome back to PenPal!",
       });
       navigate("/");
     } catch (err: any) {
@@ -137,7 +138,7 @@ const Login = () => {
       await signInWithGoogle();
       toast({
         title: "Login Successful",
-        description: "Welcome back to CampusCrew!",
+        description: "Welcome back to PenPal!",
       });
       navigate("/profile"); // Redirect to profile page after Google login
     } catch (err: any) {
@@ -183,11 +184,8 @@ const Login = () => {
       <div className="w-full max-w-md">
         {/* Header */}
         <div className="text-center mb-6 sm:mb-8">
-          <div className="flex items-center justify-center gap-2 sm:gap-3 mb-3 sm:mb-4">
-            <div className="w-10 h-10 sm:w-12 sm:h-12 bg-blue-500 rounded-lg flex items-center justify-center">
-              <GraduationCap className="w-5 h-5 sm:w-7 sm:h-7 text-white" />
-            </div>
-            <h1 className="text-2xl sm:text-3xl font-bold text-blue-600">CampusCrew</h1>
+          <div className="flex justify-center mb-3 sm:mb-4">
+            <PenPalLogo size="large" />
           </div>
           <p className="text-sm sm:text-base text-gray-600">
             {step === "phone" ? "Sign in with your phone number" : "Enter verification code"}
@@ -237,12 +235,7 @@ const Login = () => {
                   </p>
                 </div>
 
-                {/* Demo Credentials */}
-                <div className="bg-blue-50 p-3 rounded-lg">
-                  <p className="text-sm text-blue-700 font-medium mb-1">Demo Login:</p>
-                  <p className="text-xs text-blue-600">Phone: 9876543210</p>
-                  <p className="text-xs text-blue-600">OTP: 123456</p>
-                </div>
+
 
                 {/* Send OTP Button */}
                 <Button
