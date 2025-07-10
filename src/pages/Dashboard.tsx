@@ -601,17 +601,26 @@ const Dashboard = () => {
 
         {/* Tabs for different sections */}
         <Tabs defaultValue="offers" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-3">
-            <TabsTrigger value="offers">Offers Made</TabsTrigger>
-            <TabsTrigger value="posted">Gigs Posted</TabsTrigger>
-            <TabsTrigger value="received">Offers Received</TabsTrigger>
+          <TabsList className="grid w-full grid-cols-3 h-auto">
+            <TabsTrigger value="offers" className="text-xs sm:text-sm px-2 sm:px-4 py-2">
+              <span className="hidden sm:inline">Offers Made</span>
+              <span className="sm:hidden">Offers</span>
+            </TabsTrigger>
+            <TabsTrigger value="posted" className="text-xs sm:text-sm px-2 sm:px-4 py-2">
+              <span className="hidden sm:inline">Gigs Posted</span>
+              <span className="sm:hidden">Posted</span>
+            </TabsTrigger>
+            <TabsTrigger value="received" className="text-xs sm:text-sm px-2 sm:px-4 py-2">
+              <span className="hidden sm:inline">Offers Received</span>
+              <span className="sm:hidden">Received</span>
+            </TabsTrigger>
           </TabsList>
 
           {/* Offers Made Tab */}
           <TabsContent value="offers" className="space-y-4">
             <div className="flex items-center justify-between">
-              <h2 className="text-xl font-semibold">Offers You Made</h2>
-              <Badge variant="secondary">{offersMade.length} offers</Badge>
+              <h2 className="text-lg sm:text-xl font-semibold">Offers You Made</h2>
+              <Badge variant="secondary" className="text-xs sm:text-sm">{offersMade.length} offers</Badge>
             </div>
 
             {loading ? (
@@ -632,28 +641,28 @@ const Dashboard = () => {
               <div className="grid gap-4">
                 {offersMade.map((offer) => (
                   <Card key={offer.id} className="hover:shadow-md transition-shadow">
-                    <CardContent className="p-6">
-                      <div className="flex justify-between items-start mb-4">
+                    <CardContent className="p-3 sm:p-6">
+                      <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start mb-4">
                         <div className="flex-1">
-                          <div className="flex items-center gap-3 mb-2">
-                            <h3 className="text-lg font-semibold">{offer.gigTitle}</h3>
-                            <Badge className={`${getOfferStatusColor(offer.status)} text-white`}>
+                          <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3 mb-2">
+                            <h3 className="text-base sm:text-lg font-semibold">{offer.gigTitle}</h3>
+                            <Badge className={`${getOfferStatusColor(offer.status)} text-white w-fit text-xs`}>
                               {getOfferStatusText(offer.status)}
                             </Badge>
                           </div>
-                          <p className="text-gray-600 mb-3">{offer.message}</p>
+                          <p className="text-gray-600 mb-3 text-sm sm:text-base">{offer.message}</p>
 
-                          <div className="flex items-center gap-4 text-sm text-gray-500 mb-3">
+                          <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4 text-xs sm:text-sm text-gray-500 mb-3">
                             <span className="flex items-center gap-1">
-                              <Calendar className="w-4 h-4" />
+                              <Calendar className="w-3 h-3 sm:w-4 sm:h-4" />
                               Offered: {offer.createdAt.toLocaleDateString()}
                             </span>
                           </div>
                         </div>
 
-                        <div className="text-right ml-4">
-                          <div className="text-2xl font-bold text-blue-600">₹{offer.proposedBudget}</div>
-                          <div className="text-sm text-gray-500 mt-1">Proposed Budget</div>
+                        <div className="text-right sm:ml-4 mt-2 sm:mt-0">
+                          <div className="text-xl sm:text-2xl font-bold text-blue-600">₹{offer.proposedBudget}</div>
+                          <div className="text-xs sm:text-sm text-gray-500 mt-1">Proposed Budget</div>
                         </div>
                       </div>
 
@@ -664,19 +673,21 @@ const Dashboard = () => {
                             variant="outline"
                             size="sm"
                             onClick={() => handleEditOffer(offer)}
-                            className="flex items-center gap-2 flex-1"
+                            className="flex items-center gap-1 sm:gap-2 flex-1 text-xs sm:text-sm px-2 sm:px-3"
                           >
-                            <Edit className="w-4 h-4" />
-                            Edit
+                            <Edit className="w-3 h-3 sm:w-4 sm:h-4" />
+                            <span className="hidden sm:inline">Edit</span>
+                            <span className="sm:hidden">Edit</span>
                           </Button>
                           <Button
                             variant="outline"
                             size="sm"
                             onClick={() => handleDeleteOffer(offer)}
-                            className="flex items-center gap-2 flex-1 text-red-600 border-red-200 hover:bg-red-50"
+                            className="flex items-center gap-1 sm:gap-2 flex-1 text-red-600 border-red-200 hover:bg-red-50 text-xs sm:text-sm px-2 sm:px-3"
                           >
-                            <Trash2 className="w-4 h-4" />
-                            Delete
+                            <Trash2 className="w-3 h-3 sm:w-4 sm:h-4" />
+                            <span className="hidden sm:inline">Delete</span>
+                            <span className="sm:hidden">Del</span>
                           </Button>
                         </div>
                       )}
@@ -699,8 +710,8 @@ const Dashboard = () => {
           {/* Posted Gigs Tab */}
           <TabsContent value="posted" className="space-y-4">
             <div className="flex items-center justify-between">
-              <h2 className="text-xl font-semibold">Gigs You Posted</h2>
-              <Badge variant="secondary">{postedGigs.length} posted</Badge>
+              <h2 className="text-lg sm:text-xl font-semibold">Gigs You Posted</h2>
+              <Badge variant="secondary" className="text-xs sm:text-sm">{postedGigs.length} posted</Badge>
             </div>
             
 {loading ? (
@@ -721,20 +732,20 @@ const Dashboard = () => {
               <div className="grid gap-4">
                 {postedGigs.map((gig) => (
                   <Card key={gig.id} className="hover:shadow-md transition-shadow">
-                    <CardContent className="p-6">
-                      <div className="flex justify-between items-start mb-4">
+                    <CardContent className="p-3 sm:p-6">
+                      <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start mb-4">
                         <div className="flex-1">
-                          <div className="flex items-center gap-3 mb-2">
-                            <h3 className="text-lg font-semibold">{gig.title}</h3>
-                            <Badge className={`${getStatusColor(gig.status)} text-white`}>
+                          <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3 mb-2">
+                            <h3 className="text-base sm:text-lg font-semibold">{gig.title}</h3>
+                            <Badge className={`${getStatusColor(gig.status)} text-white w-fit text-xs`}>
                               {getStatusText(gig.status)}
                             </Badge>
                           </div>
-                          <p className="text-gray-600 mb-3">{gig.description}</p>
+                          <p className="text-gray-600 mb-3 text-sm sm:text-base">{gig.description}</p>
 
-                          <div className="flex items-center gap-4 text-sm text-gray-500 mb-3">
+                          <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4 text-xs sm:text-sm text-gray-500 mb-3">
                             <span className="flex items-center gap-1">
-                              <Calendar className="w-4 h-4" />
+                              <Calendar className="w-3 h-3 sm:w-4 sm:h-4" />
                               Posted: {gig.createdAt.toLocaleDateString()}
                             </span>
                             <span className="flex items-center gap-1">
@@ -810,8 +821,8 @@ const Dashboard = () => {
           {/* Offers Received Tab */}
           <TabsContent value="received" className="space-y-4">
             <div className="flex items-center justify-between">
-              <h2 className="text-xl font-semibold">Offers Received</h2>
-              <Badge variant="secondary">{offersReceived.length} offers</Badge>
+              <h2 className="text-lg sm:text-xl font-semibold">Offers Received</h2>
+              <Badge variant="secondary" className="text-xs sm:text-sm">{offersReceived.length} offers</Badge>
             </div>
 
             {loading ? (

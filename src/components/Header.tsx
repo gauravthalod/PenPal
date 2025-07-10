@@ -76,7 +76,7 @@ const Header = ({ onLoginClick, showLoginButton = false }: HeaderProps) => {
 
             <button
               onClick={handleDashboardClick}
-              className="hover:bg-gray-100 p-1.5 sm:p-2 rounded-full transition-colors hidden sm:block"
+              className="hover:bg-gray-100 p-1.5 sm:p-2 rounded-full transition-colors"
               title="Dashboard"
             >
               <BarChart3 className="w-5 h-5 sm:w-6 sm:h-6 text-gray-600" />
