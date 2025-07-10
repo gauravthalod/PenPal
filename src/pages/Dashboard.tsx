@@ -75,83 +75,52 @@ const Dashboard = () => {
       setLoading(true);
       console.log("🔄 Fetching dashboard data for user:", userProfile.uid);
 
-      // Fetch user's posted gigs
-      console.log("📋 Fetching user's posted gigs...");
-      console.log("🔍 User ID for gig fetch:", userProfile.uid);
-      console.log("🔍 User profile:", {
-        uid: userProfile.uid,
-        name: `${userProfile.firstName} ${userProfile.lastName}`,
-        location: userProfile.location
+      // Fetch all data in parallel for better performance
+      console.log("📋 Fetching all dashboard data in parallel...");
+
+      const [userGigs, madeOffers, receivedOffers] = await Promise.all([
+        // Fetch user's posted gigs
+        gigService.getUserGigs(userProfile.uid).catch(error => {
+          console.error("❌ Error fetching user gigs:", error);
+          return [];
+        }),
+
+        // Fetch offers made by user
+        offerService.getOffersMade(userProfile.uid).catch(error => {
+          console.error("❌ Error fetching offers made:", error);
+          return [];
+        }),
+
+        // Fetch offers received by user (for their gigs)
+        offerService.getOffersReceived(userProfile.uid).catch(error => {
+          console.error("❌ Error fetching offers received:", error);
+          return [];
+        })
+      ]);
+
+      console.log("✅ All dashboard data fetched successfully!");
+      console.log("📊 Data summary:", {
+        postedGigs: userGigs.length,
+        offersMade: madeOffers.length,
+        offersReceived: receivedOffers.length
       });
-      try {
-        const userGigs = await gigService.getUserGigs(userProfile.uid);
-        console.log("✅ User posted gigs fetched successfully!");
-        console.log("📊 Posted gigs breakdown:", {
-          total: userGigs.length,
-          gigIds: userGigs.map(g => g.id),
-          gigTitles: userGigs.map(g => g.title),
-          postedByValues: userGigs.map(g => g.postedBy),
-          statuses: userGigs.map(g => g.status)
-        });
 
-        if (userGigs.length === 0) {
-          console.log("ℹ️ No gigs found for user. This could mean:");
-          console.log("   - User hasn't posted any gigs yet");
-          console.log("   - Database query issue");
-          console.log("   - User ID mismatch");
-        }
+      // Update state with fetched data
+      setPostedGigs(userGigs);
+      setOffersMade(madeOffers);
+      setOffersReceived(receivedOffers);
 
-        setPostedGigs(userGigs);
-      } catch (gigsError) {
-        console.error("❌ Error fetching user gigs:", gigsError);
-        setPostedGigs([]); // Set empty array on error
-      }
-
-      // Fetch offers made by user
-      console.log("📤 Fetching offers made by user...");
-      try {
-        const madeOffers = await offerService.getOffersMade(userProfile.uid);
-        console.log("✅ Offers made by user:", madeOffers);
-        console.log("📊 Offers made breakdown:", {
-          total: madeOffers.length,
-          pending: madeOffers.filter(o => o.status === 'pending').length,
-          accepted: madeOffers.filter(o => o.status === 'accepted').length,
-          rejected: madeOffers.filter(o => o.status === 'rejected').length
-        });
-        setOffersMade(madeOffers);
-      } catch (offersError) {
-        console.error("❌ Error fetching offers made:", offersError);
-        setOffersMade([]); // Set empty array on error
-      }
-
-      // Fetch offers received by user (for their gigs)
-      console.log("📥 Fetching offers received by user...");
-      try {
-        const receivedOffers = await offerService.getOffersReceived(userProfile.uid);
-        console.log("✅ Offers received by user:", receivedOffers);
-        console.log("📊 Offers received breakdown:", {
-          total: receivedOffers.length,
-          pending: receivedOffers.filter(o => o.status === 'pending').length,
-          accepted: receivedOffers.filter(o => o.status === 'accepted').length,
-          rejected: receivedOffers.filter(o => o.status === 'rejected').length
-        });
-        setOffersReceived(receivedOffers);
-      } catch (receivedError) {
-        console.error("❌ Error fetching offers received:", receivedError);
-        setOffersReceived([]); // Set empty array on error
-      }
-
-      // Calculate stats (use current state values)
-      const completedOffers = offersMade.filter(offer => offer.status === 'accepted');
+      // Calculate stats using the fresh data (not state)
+      const completedOffers = madeOffers.filter(offer => offer.status === 'accepted');
       const totalEarnings = completedOffers.reduce((sum, offer) => sum + offer.proposedBudget, 0);
 
       const newStats: DashboardStats = {
         totalEarnings,
         completedGigs: completedOffers.length,
         averageRating: 4.5, // TODO: Implement rating system
-        postedGigs: postedGigs.length,
-        activeOffers: offersMade.filter(offer => offer.status === 'pending').length,
-        receivedOffers: offersReceived.length
+        postedGigs: userGigs.length, // Use fresh data
+        activeOffers: madeOffers.filter(offer => offer.status === 'pending').length, // Use fresh data
+        receivedOffers: receivedOffers.length // Use fresh data
       };
 
       setStats(newStats);
@@ -186,6 +155,19 @@ const Dashboard = () => {
           variant: "destructive"
         });
       }
+
+      // Set empty arrays on error to ensure UI shows something
+      setPostedGigs([]);
+      setOffersMade([]);
+      setOffersReceived([]);
+      setStats({
+        totalEarnings: 0,
+        completedGigs: 0,
+        averageRating: 0,
+        postedGigs: 0,
+        activeOffers: 0,
+        receivedOffers: 0
+      });
     } finally {
       setLoading(false);
     }
@@ -276,6 +258,31 @@ const Dashboard = () => {
   useEffect(() => {
     fetchDashboardData();
   }, [userProfile?.uid]);
+
+  // Recalculate stats whenever data arrays change
+  useEffect(() => {
+    // Only recalculate if we have actual data (not just initial empty arrays)
+    const hasData = postedGigs.length > 0 || offersMade.length > 0 || offersReceived.length > 0;
+    const isInitialLoad = postedGigs.length === 0 && offersMade.length === 0 && offersReceived.length === 0;
+
+    // Always update stats, even with empty arrays (for initial state)
+    if (hasData || isInitialLoad) {
+      const completedOffers = offersMade.filter(offer => offer.status === 'accepted');
+      const totalEarnings = completedOffers.reduce((sum, offer) => sum + offer.proposedBudget, 0);
+
+      const newStats: DashboardStats = {
+        totalEarnings,
+        completedGigs: completedOffers.length,
+        averageRating: 4.5, // TODO: Implement rating system
+        postedGigs: postedGigs.length,
+        activeOffers: offersMade.filter(offer => offer.status === 'pending').length,
+        receivedOffers: offersReceived.length
+      };
+
+      setStats(newStats);
+      console.log("📊 Stats recalculated from state changes:", newStats);
+    }
+  }, [postedGigs, offersMade, offersReceived]);
 
   // Listen for gig posted events to refresh dashboard immediately
   useEffect(() => {
