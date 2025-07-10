@@ -9,7 +9,7 @@ import Buzz from "./Buzz";
 
 import { useAuth } from "@/contexts/AuthContext";
 
-import { gigService, Gig } from "@/services/database";
+import { gigService, Gig, offerService } from "@/services/database";
 
 
 const Index = () => {
@@ -66,8 +66,80 @@ const Index = () => {
     fetchGigs();
   }, [userProfile?.uid]);
 
-  const handleMakeOffer = () => {
-    // Handled in MakeOfferDialog component
+  const handleMakeOffer = async (offerData: { gigId: string; offerPrice: number; message: string }) => {
+    try {
+      if (!userProfile) {
+        toast({
+          title: "Authentication Error",
+          description: "Please log in to make an offer.",
+          variant: "destructive"
+        });
+        return;
+      }
+
+      const offer = {
+        gigId: offerData.gigId,
+        gigTitle: gigs.find(g => g.id === offerData.gigId)?.title || "Unknown Gig",
+        offeredBy: userProfile.uid,
+        offeredByName: `${userProfile.firstName} ${userProfile.lastName}`.trim(),
+        gigPostedBy: gigs.find(g => g.id === offerData.gigId)?.postedBy || "",
+        message: offerData.message,
+        proposedBudget: offerData.offerPrice,
+        status: 'pending' as const
+      };
+
+      await offerService.createOffer(offer);
+
+      toast({
+        title: "Offer Submitted!",
+        description: "Your offer has been sent to the gig poster.",
+      });
+    } catch (error) {
+      console.error("Error making offer:", error);
+      toast({
+        title: "Error",
+        description: "Failed to submit offer. Please try again.",
+        variant: "destructive"
+      });
+    }
+  };
+
+  const handleTakeOffer = async (offerData: { gigId: string; offerPrice: number; message: string }) => {
+    try {
+      if (!userProfile) {
+        toast({
+          title: "Authentication Error",
+          description: "Please log in to take this offer.",
+          variant: "destructive"
+        });
+        return;
+      }
+
+      const offer = {
+        gigId: offerData.gigId,
+        gigTitle: gigs.find(g => g.id === offerData.gigId)?.title || "Unknown Gig",
+        offeredBy: userProfile.uid,
+        offeredByName: `${userProfile.firstName} ${userProfile.lastName}`.trim(),
+        gigPostedBy: gigs.find(g => g.id === offerData.gigId)?.postedBy || "",
+        message: offerData.message,
+        proposedBudget: offerData.offerPrice, // This will be the original price
+        status: 'pending' as const
+      };
+
+      await offerService.createOffer(offer);
+
+      toast({
+        title: "Gig Accepted!",
+        description: `You've accepted the gig at ₹${offerData.offerPrice}. The poster will be notified.`,
+      });
+    } catch (error) {
+      console.error("Error taking offer:", error);
+      toast({
+        title: "Error",
+        description: "Failed to take offer. Please try again.",
+        variant: "destructive"
+      });
+    }
   };
 
   const handlePostGig = () => {
@@ -92,6 +164,7 @@ const Index = () => {
                 gigs={gigs}
                 loading={loading}
                 onMakeOffer={handleMakeOffer}
+                onTakeOffer={handleTakeOffer}
                 onPostGig={handlePostGig}
                 onRefresh={fetchGigs}
               />

@@ -7,6 +7,7 @@ import { Search, Plus, ChevronDown, Tag, DollarSign, Calendar, Loader2, X, Refre
 import GigCard from "./GigCard";
 import PostGigDialog from "./PostGigDialog";
 import MakeOfferDialog from "./MakeOfferDialog";
+import TakeOfferDialog from "./TakeOfferDialog";
 import { Gig } from "@/services/database";
 import { useAuth } from "@/contexts/AuthContext";
 
@@ -29,11 +30,12 @@ interface GigFeedProps {
   gigs: Gig[];
   loading?: boolean;
   onMakeOffer?: (offerData: { gigId: string; offerPrice: number; message: string }) => void;
+  onTakeOffer?: (offerData: { gigId: string; offerPrice: number; message: string }) => void;
   onPostGig?: (gigData: any) => void;
   onRefresh?: () => void;
 }
 
-const GigFeed = ({ gigs, loading = false, onMakeOffer, onPostGig, onRefresh }: GigFeedProps) => {
+const GigFeed = ({ gigs, loading = false, onMakeOffer, onTakeOffer, onPostGig, onRefresh }: GigFeedProps) => {
   const { userProfile } = useAuth();
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("");
@@ -41,6 +43,7 @@ const GigFeed = ({ gigs, loading = false, onMakeOffer, onPostGig, onRefresh }: G
   const [selectedDeadline, setSelectedDeadline] = useState("");
   const [showPostGigDialog, setShowPostGigDialog] = useState(false);
   const [showMakeOfferDialog, setShowMakeOfferDialog] = useState(false);
+  const [showTakeOfferDialog, setShowTakeOfferDialog] = useState(false);
   const [selectedGig, setSelectedGig] = useState<ComponentGig | null>(null);
 
   const mainCategories = ["Academic", "Creative", "Tech", "Errands", "Events"];
@@ -147,8 +150,21 @@ const GigFeed = ({ gigs, loading = false, onMakeOffer, onPostGig, onRefresh }: G
     setShowMakeOfferDialog(true);
   };
 
+  const handleTakeOfferClick = (gig: ComponentGig) => {
+    // Additional check to prevent taking own gigs (UI level)
+    if (userProfile && userProfile.uid === gig.postedBy) {
+      return; // Don't open dialog for own gigs
+    }
+    setSelectedGig(gig);
+    setShowTakeOfferDialog(true);
+  };
+
   const handleMakeOfferSubmit = (offerData: { gigId: string; offerPrice: number; message: string }) => {
     onMakeOffer?.(offerData);
+  };
+
+  const handleTakeOfferSubmit = (offerData: { gigId: string; offerPrice: number; message: string }) => {
+    onTakeOffer?.(offerData);
   };
 
   // Generate deadline options with actual dates for filter
@@ -324,6 +340,7 @@ const GigFeed = ({ gigs, loading = false, onMakeOffer, onPostGig, onRefresh }: G
               key={gig.id}
               gig={gig}
               onMakeOffer={() => handleMakeOfferClick(gig)}
+              onTakeOffer={() => handleTakeOfferClick(gig)}
             />
           ))
         )}
@@ -341,6 +358,13 @@ const GigFeed = ({ gigs, loading = false, onMakeOffer, onPostGig, onRefresh }: G
         open={showMakeOfferDialog}
         onOpenChange={setShowMakeOfferDialog}
         onSubmit={handleMakeOfferSubmit}
+        gig={selectedGig}
+      />
+
+      <TakeOfferDialog
+        open={showTakeOfferDialog}
+        onOpenChange={setShowTakeOfferDialog}
+        onSubmit={handleTakeOfferSubmit}
         gig={selectedGig}
       />
     </div>
