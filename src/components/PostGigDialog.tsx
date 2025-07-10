@@ -9,6 +9,7 @@ import { Plus, X } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { gigService } from "@/services/database";
 import { useToast } from "@/hooks/use-toast";
+import { ToastAction } from "@/components/ui/toast";
 
 interface PostGigDialogProps {
   open: boolean;
@@ -126,13 +127,18 @@ const PostGigDialog = ({ open, onOpenChange, onSubmit }: PostGigDialogProps) => 
       return;
     }
 
-    // Check if profile is complete
-    if (!userProfile.college || !userProfile.firstName || !userProfile.lastName) {
+    // Check if profile is complete (only require essential fields)
+    if (!userProfile.firstName || !userProfile.lastName || !userProfile.location) {
       console.error("❌ PostGig: Incomplete user profile", userProfile);
       toast({
-        title: "Profile Incomplete",
-        description: "Please complete your profile before posting a gig. Go to Profile page to update your information.",
-        variant: "destructive"
+        title: "Complete Your Profile",
+        description: "Please add your name and location to start posting gigs.",
+        variant: "destructive",
+        action: (
+          <ToastAction altText="Complete Profile" onClick={() => window.location.href = '/profile'}>
+            Complete Profile
+          </ToastAction>
+        )
       });
       return;
     }
