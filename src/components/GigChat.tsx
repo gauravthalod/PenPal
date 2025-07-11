@@ -174,28 +174,7 @@ const GigChat = ({ chat, onBack }: GigChatProps) => {
     }
   };
 
-  // Test storage connection (for debugging)
-  const handleTestStorage = async () => {
-    try {
-      console.log("🧪 Testing storage connection...");
-      const isConnected = await chatService.testStorageConnection();
 
-      toast({
-        title: isConnected ? "Storage Connected" : "Storage Failed",
-        description: isConnected
-          ? "Firebase Storage is working correctly!"
-          : "Firebase Storage connection failed. Check console for details.",
-        variant: isConnected ? "default" : "destructive"
-      });
-    } catch (error) {
-      console.error("Storage test error:", error);
-      toast({
-        title: "Storage Test Failed",
-        description: "Could not test storage connection. Check console for details.",
-        variant: "destructive"
-      });
-    }
-  };
 
   const handleSendMessage = async () => {
     if (!newMessage.trim() || !userProfile || !chat.id) return;
@@ -298,20 +277,10 @@ const GigChat = ({ chat, onBack }: GigChatProps) => {
             </p>
           </div>
           
-          <div className="flex items-center gap-2">
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={handleTestStorage}
-              className="text-xs"
-            >
-              Test Storage
-            </Button>
-            <Badge variant="outline" className="text-green-600 border-green-600">
-              <MessageCircle className="w-3 h-3 mr-1" />
-              Active Chat
-            </Badge>
-          </div>
+          <Badge variant="outline" className="text-green-600 border-green-600">
+            <MessageCircle className="w-3 h-3 mr-1" />
+            Active Chat
+          </Badge>
         </div>
       </CardHeader>
 

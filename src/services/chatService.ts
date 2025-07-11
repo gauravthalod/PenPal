@@ -341,36 +341,7 @@ export const chatService = {
     }
   },
 
-  // Test Firebase Storage connectivity
-  async testStorageConnection(): Promise<boolean> {
-    try {
-      console.log("🧪 Testing Firebase Storage connection...");
 
-      // Create a small test file
-      const testData = new Blob(['test'], { type: 'text/plain' });
-      const testFile = new File([testData], 'test.txt', { type: 'text/plain' });
-
-      // Try to upload to a test location
-      const testRef = ref(storage, `test/${Date.now()}_test.txt`);
-      await uploadBytes(testRef, testFile);
-
-      // Try to get download URL
-      const downloadURL = await getDownloadURL(testRef);
-
-      // Clean up test file
-      try {
-        await deleteObject(testRef);
-      } catch (cleanupError) {
-        console.warn("⚠️ Could not clean up test file:", cleanupError);
-      }
-
-      console.log("✅ Firebase Storage connection test successful");
-      return true;
-    } catch (error) {
-      console.error("❌ Firebase Storage connection test failed:", error);
-      return false;
-    }
-  },
 
   // Format file size for display
   formatFileSize(bytes: number): string {
