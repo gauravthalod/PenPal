@@ -10,7 +10,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { MessageCircle, Search, Clock, Users, Trash2, MoreVertical } from "lucide-react";
+import { MessageCircle, Search, Users, Trash2, MoreVertical } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { chatService, Chat } from "@/services/chatService";
 import { useToast } from "@/hooks/use-toast";
@@ -215,8 +215,7 @@ const ChatList = ({ onChatSelect, selectedChatId }: ChatListProps) => {
                             {otherParticipantName}
                           </h4>
                           {chat.lastMessageTime && (
-                            <span className="text-xs text-gray-500 flex items-center gap-1">
-                              <Clock className="w-3 h-3" />
+                            <span className="text-xs text-gray-500">
                               {formatLastMessageTime(chat.lastMessageTime)}
                             </span>
                           )}

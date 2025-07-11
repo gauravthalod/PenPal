@@ -13,9 +13,16 @@ import {
   Timestamp,
   onSnapshot,
   Unsubscribe,
-  writeBatch
+  writeBatch,
+  serverTimestamp
 } from 'firebase/firestore';
-import { db } from '@/lib/firebase';
+import {
+  ref,
+  uploadBytes,
+  getDownloadURL,
+  deleteObject
+} from 'firebase/storage';
+import { db, storage } from '@/lib/firebase';
 import { COLLECTIONS } from './database';
 
 // Chat interface
@@ -39,7 +46,11 @@ export interface Message {
   senderId: string;
   senderName: string;
   content: string;
-  type: 'text' | 'image' | 'file';
+  type: 'text' | 'image' | 'video' | 'document';
+  mediaUrl?: string;
+  mediaName?: string;
+  mediaSize?: number;
+  videoDuration?: number; // For videos, in seconds
   createdAt: Date;
   readBy: string[]; // Array of user IDs who have read the message
 }
@@ -186,6 +197,190 @@ export const chatService = {
     }
   },
 
+  // Upload file to Firebase Storage
+  async uploadFile(file: File, chatId: string, senderId: string): Promise<{ url: string; name: string; size: number }> {
+    try {
+      console.log("📤 Starting file upload process...");
+      console.log("📄 File details:", {
+        name: file.name,
+        type: file.type,
+        size: file.size,
+        chatId,
+        senderId
+      });
+
+      // Check if storage is available
+      if (!storage) {
+        throw new Error('Firebase Storage is not initialized');
+      }
+
+      // Validate file size (max 10MB for images/videos, 5MB for documents)
+      const maxSize = file.type.startsWith('image/') || file.type.startsWith('video/') ? 10 * 1024 * 1024 : 5 * 1024 * 1024;
+      if (file.size > maxSize) {
+        const maxSizeMB = file.type.startsWith('image/') || file.type.startsWith('video/') ? '10MB' : '5MB';
+        throw new Error(`File size must be less than ${maxSizeMB}. Current size: ${(file.size / 1024 / 1024).toFixed(2)}MB`);
+      }
+
+      // Validate file type
+      const allowedTypes = {
+        image: ['image/jpeg', 'image/png', 'image/gif', 'image/webp'],
+        video: ['video/mp4', 'video/webm', 'video/quicktime'],
+        document: ['application/pdf', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', 'text/plain', 'application/vnd.ms-excel', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet']
+      };
+
+      const fileType = Object.keys(allowedTypes).find(type =>
+        allowedTypes[type as keyof typeof allowedTypes].includes(file.type)
+      );
+
+      if (!fileType) {
+        console.error("❌ Unsupported file type:", file.type);
+        throw new Error(`File type "${file.type}" not supported. Please upload images, videos (MP4), or documents (PDF, DOC, TXT, XLS).`);
+      }
+
+      console.log("✅ File validation passed. Type:", fileType);
+
+      // Create unique filename
+      const timestamp = Date.now();
+      const sanitizedFileName = file.name.replace(/[^a-zA-Z0-9.-]/g, '_');
+      const fileName = `chat-files/${chatId}/${senderId}/${timestamp}_${sanitizedFileName}`;
+
+      console.log("📁 Upload path:", fileName);
+
+      // Upload to Firebase Storage
+      console.log("🚀 Starting Firebase Storage upload...");
+      const storageRef = ref(storage, fileName);
+      const uploadResult = await uploadBytes(storageRef, file);
+      console.log("✅ Upload completed, getting download URL...");
+
+      const downloadURL = await getDownloadURL(uploadResult.ref);
+      console.log("✅ File uploaded successfully:", downloadURL);
+
+      return {
+        url: downloadURL,
+        name: file.name,
+        size: file.size
+      };
+    } catch (error) {
+      console.error("❌ Error uploading file:", error);
+      console.error("❌ Error details:", {
+        message: error instanceof Error ? error.message : 'Unknown error',
+        code: (error as any)?.code,
+        stack: error instanceof Error ? error.stack : undefined
+      });
+      throw error;
+    }
+  },
+
+  // Validate video duration (max 15 seconds for videos)
+  async validateVideo(file: File): Promise<number> {
+    return new Promise((resolve, reject) => {
+      const video = document.createElement('video');
+      video.preload = 'metadata';
+
+      video.onloadedmetadata = () => {
+        window.URL.revokeObjectURL(video.src);
+        const duration = video.duration;
+
+        if (duration > 15) {
+          reject(new Error('Video must be 15 seconds or shorter'));
+        } else {
+          resolve(duration);
+        }
+      };
+
+      video.onerror = () => {
+        reject(new Error('Invalid video file'));
+      };
+
+      video.src = URL.createObjectURL(file);
+    });
+  },
+
+  // Send a media message (image, video, document)
+  async sendMediaMessage(
+    chatId: string,
+    senderId: string,
+    senderName: string,
+    file: File
+  ) {
+    try {
+      console.log("📤 Sending media message:", file.type);
+
+      // Validate video duration if it's a video
+      let videoDuration: number | undefined;
+      if (file.type.startsWith('video/')) {
+        videoDuration = await this.validateVideo(file);
+      }
+
+      // Upload file to Firebase Storage
+      const { url, name, size } = await this.uploadFile(file, chatId, senderId);
+
+      // Determine message type
+      let messageType: 'image' | 'video' | 'document' = 'document';
+      if (file.type.startsWith('image/')) messageType = 'image';
+      else if (file.type.startsWith('video/')) messageType = 'video';
+
+      // Create message data
+      const messageData = {
+        chatId,
+        senderId,
+        senderName,
+        content: `Shared ${messageType}: ${name}`,
+        type: messageType,
+        mediaUrl: url,
+        mediaName: name,
+        mediaSize: size,
+        videoDuration: messageType === 'video' ? videoDuration : undefined
+      };
+
+      // Send message
+      return await this.sendMessage(messageData);
+    } catch (error) {
+      console.error("❌ Error sending media message:", error);
+      throw error;
+    }
+  },
+
+  // Test Firebase Storage connectivity
+  async testStorageConnection(): Promise<boolean> {
+    try {
+      console.log("🧪 Testing Firebase Storage connection...");
+
+      // Create a small test file
+      const testData = new Blob(['test'], { type: 'text/plain' });
+      const testFile = new File([testData], 'test.txt', { type: 'text/plain' });
+
+      // Try to upload to a test location
+      const testRef = ref(storage, `test/${Date.now()}_test.txt`);
+      await uploadBytes(testRef, testFile);
+
+      // Try to get download URL
+      const downloadURL = await getDownloadURL(testRef);
+
+      // Clean up test file
+      try {
+        await deleteObject(testRef);
+      } catch (cleanupError) {
+        console.warn("⚠️ Could not clean up test file:", cleanupError);
+      }
+
+      console.log("✅ Firebase Storage connection test successful");
+      return true;
+    } catch (error) {
+      console.error("❌ Firebase Storage connection test failed:", error);
+      return false;
+    }
+  },
+
+  // Format file size for display
+  formatFileSize(bytes: number): string {
+    if (bytes === 0) return '0 Bytes';
+    const k = 1024;
+    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+  },
+
   // Send a message
   async sendMessage(messageData: Omit<Message, 'id' | 'createdAt' | 'readBy'>) {
     try {
@@ -200,8 +395,12 @@ export const chatService = {
       
       // Update chat's last message info
       const chatRef = doc(db, COLLECTIONS.CHATS, messageData.chatId);
+      const lastMessageText = messageData.type === 'text'
+        ? messageData.content
+        : `Shared ${messageData.type}: ${messageData.mediaName || 'file'}`;
+
       await updateDoc(chatRef, {
-        lastMessage: messageData.content,
+        lastMessage: lastMessageText,
         lastMessageTime: Timestamp.now(),
         updatedAt: Timestamp.now()
       });
